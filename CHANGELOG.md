@@ -18,6 +18,17 @@ do meio (0.**3**.0).
   perto da entrada. Sem banheiros, ping-pong e fliperama, os agentes ociosos fazem as outras atividades. A página
   recarrega ao trocar; o padrão continua sendo **Completas**.
 
+- **Estado da sala na placa e na luz:** a placa de cada sala de projeto ganha uma bolinha — verde pulsando quando
+  alguém trabalha, laranja piscando quando alguém precisa de você e cinza quando todos estão ociosos. Em repouso, a
+  sala fica à meia-luz (os monitores continuam acesos); a luz apagada continua sendo "todo mundo foi embora".
+
+### Corrigido
+
+- **Servidor de dev em segundo plano não deixa mais o agente "esperando o shell".** Bash em segundo plano que não
+  termina sozinho (`pnpm dev`, `vite`, `next dev`, `nodemon`, `--watch`, `docker compose up` sem `-d`...) não conta
+  como espera desde o início; qualquer outro, depois de 10 minutos. O agente fica ocioso e o shell continua listado
+  nos detalhes.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido
