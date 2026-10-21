@@ -18,9 +18,10 @@ do meio (0.**3**.0).
   perto da entrada. Sem banheiros, ping-pong e fliperama, os agentes ociosos fazem as outras atividades. A página
   recarrega ao trocar; o padrão continua sendo **Completas**.
 
-- **Estado da sala na placa e na luz:** a placa de cada sala de projeto ganha uma bolinha — verde pulsando quando
-  alguém trabalha, laranja piscando quando alguém precisa de você e cinza quando todos estão ociosos. Em repouso, a
-  sala fica à meia-luz (os monitores continuam acesos); a luz apagada continua sendo "todo mundo foi embora".
+- **Estado da sala na placa e na luz:** a faixa à esquerda da placa de cada sala de projeto passa a mostrar o estado
+  (no lugar da cor do tema): verde quando alguém trabalha, laranja piscando quando alguém precisa de você e cinza
+  quando todos estão ociosos. Em repouso, a sala fica à meia-luz (os monitores continuam acesos); a luz apagada
+  continua sendo "todo mundo foi embora".
 
 ### Corrigido
 
