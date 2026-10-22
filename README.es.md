@@ -501,6 +501,10 @@ abren la misma ventana, con pestañas para los demás agentes del mismo proyecto
   modos de mouse/teclado que Claude había activado).
 - Sesión en segundo plano (abierta con **Nuevo agente**, `claude --bg`): **Tomar el control aquí** solo la abre aquí
   (`claude attach`), sin cerrar nada; cerrar la ventana la deja en marcha y **Cerrar** usa `claude stop`.
+- **Nuevo agente** con **Abrir en el terminal interactivo** la inicia igual (en segundo plano, abierta aquí con
+  `claude attach`): reiniciar Habblaud no la cierra. `npm run agents:stop` detiene todos los agentes en segundo plano
+  que abrió Habblaud (anotados en `~/.habblaud/launched.json`), guardando sus conversaciones; tus propias sesiones no
+  se tocan.
 - **Cerrar** termina la sesión, esté aquí o en otra terminal (la conversación queda guardada).
 - **Nueva sesión** (en el panel de la sala) abre un Claude Code nuevo en la carpeta del proyecto.
 

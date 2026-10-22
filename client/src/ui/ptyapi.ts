@@ -31,6 +31,8 @@ const SIZE = { cols: 120, rows: 32 };
 export interface PtyStart {
   prompt: string;
   attachments?: string[];
+  /** Começa em segundo plano e abre aqui com `claude attach` (sobrevive ao Habblaud). */
+  background?: boolean;
 }
 
 /** Sessão nova do Claude Code na pasta (e conta) indicada. */

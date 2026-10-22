@@ -12,7 +12,7 @@
 // Segurança: quem controla um terminal destes executa comandos na máquina. O recurso é opt-in (HABBLAUD_PTY=1),
 // as rotas só aceitam conexões do próprio computador (ver http/pty.ts) e ele fica desligado no Docker.
 import { execFile } from 'node:child_process';
-import { chmodSync, readFileSync, statSync } from 'node:fs';
+import { chmodSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
@@ -24,7 +24,7 @@ import { readProcInfo, sameProcess, type ProcInfo, type RegisteredProc } from '.
 import { killWithConsoleReset } from './winkill';
 import { tr } from '../../shared/i18n';
 import { isExecutableFile } from '../claude-bin';
-import { PROMPT_MAX } from '../spawn/spawn';
+import { PROMPT_MAX, type CliRunner } from '../spawn/spawn';
 
 export { claudeBinFrom, findExecutable, isExecutableFile } from '../claude-bin';
 
@@ -93,6 +93,10 @@ export interface PtyManagerOptions {
   readSession?: (accountDir: string, pid: number) => unknown;
   /** Encerra uma sessão em segundo plano (padrão: `claude stop <job>`). */
   stopJob?: (job: string, env: NodeJS.ProcessEnv) => Promise<void>;
+  /** Começa uma sessão em segundo plano (`claude --bg`); sem ele, sessões novas abrem direto no terminal. */
+  startJob?: CliRunner;
+  /** PID da sessão em segundo plano `job` no registro da conta (padrão: lê `<conta>/sessions/*.json`). */
+  findJobPid?: (accountDir: string, job: string) => number | undefined;
   /** Tela de cada terminal, reproduzida para quem conecta (padrão: só a saída bruta; ver pty/screen.ts). */
   createScreen?: ScreenFactory;
   isAlive?: (pid: number) => boolean;
@@ -112,6 +116,9 @@ const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 /** Id de sessão em segundo plano (`jobId` do registro, ex.: "832df8ae"). */
 const JOB_ID = /^[\w-]{1,64}$/;
 const STOP_JOB_TIMEOUT_MS = 15_000;
+/** Quanto esperar a sessão em segundo plano recém-aberta aparecer no registro. */
+const JOB_PID_WAIT_MS = 10_000;
+const JOB_PID_POLL_MS = 250;
 /** Id de agente principal: "<conta>:<pid>". */
 const MAIN_ID = /^(.+):(\d+)$/;
 
@@ -248,6 +255,35 @@ export class PtyManager {
       throw new PtyError(400, tr('o pedido passa de {0} caracteres', [PROMPT_MAX]));
     }
     return this.spawn(this.plan(p, this.takeovers.size), { prompt: p.prompt?.trim() || undefined });
+  }
+
+  /**
+   * Sessão nova que sobrevive ao Habblaud: começa em segundo plano (`claude --bg`) e abre aqui com `claude attach`.
+   * Só na conta padrão (o `--bg` roda com o ambiente do servidor); se o `--bg` falhar (pasta ainda não confiável,
+   * por exemplo), abre direto no terminal, onde o aviso de confiança aparece.
+   */
+  async createBackground(p: { cwd: unknown; account?: unknown; cols?: unknown; rows?: unknown; prompt?: unknown }): Promise<PtyInfo> {
+    const plan = this.plan(p, this.takeovers.size);
+    const prompt = typeof p.prompt === 'string' ? p.prompt : '';
+    if (!this.opts.startJob || !plan.account.isDefault || prompt.length > PROMPT_MAX || prompt.includes('\0')) return this.create(p);
+    const r = await this.opts.startJob({ folder: plan.cwd, prompt });
+    if (!r.ok) {
+      log.warn(tr('Sessão em segundo plano não começou ({0}): abrindo direto no terminal.', [r.error]));
+      return this.create(p);
+    }
+    const pid = await this.waitJobPid(plan.account.dir, r.id);
+    // O pedido já esperou o `--bg`: confere de novo o limite de terminais.
+    return this.spawn(this.plan(p, this.takeovers.size), { attach: r.id, agentId: pid ? `${plan.account.id}:${pid}` : undefined });
+  }
+
+  private async waitJobPid(accountDir: string, job: string): Promise<number | undefined> {
+    const find = this.opts.findJobPid ?? findJobPid;
+    for (let t = 0; t < JOB_PID_WAIT_MS; t += JOB_PID_POLL_MS) {
+      const pid = find(accountDir, job);
+      if (pid) return pid;
+      await this.sleep(JOB_PID_POLL_MS);
+    }
+    return undefined;
   }
 
   /**
@@ -571,6 +607,27 @@ export class PtyManager {
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
   const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : fallback;
   return Math.min(max, Math.max(min, n));
+}
+
+/** PID da sessão em segundo plano `job` no registro da conta (`<conta>/sessions/<pid>.json`). */
+export function findJobPid(accountDir: string, job: string): number | undefined {
+  const dir = join(accountDir, 'sessions');
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return undefined;
+  }
+  for (const name of names) {
+    if (!name.endsWith('.json')) continue;
+    try {
+      const r = JSON.parse(readFileSync(join(dir, name), 'utf8')) as { pid?: unknown; kind?: unknown; jobId?: unknown };
+      if (r.kind === 'bg' && r.jobId === job && typeof r.pid === 'number') return r.pid;
+    } catch {
+      // sendo gravado: tenta de novo na próxima volta
+    }
+  }
+  return undefined;
 }
 
 /**

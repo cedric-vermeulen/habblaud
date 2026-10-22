@@ -23,8 +23,11 @@ do meio (0.**3**.0).
   para o agente ler (até 8 por mensagem, 15 MB cada). Só com o Habblaud fora do Docker (`npm start`). O **Novo agente**
   também passa a aceitar colar e soltar arquivos no pedido.
 - **Novo agente no terminal interativo:** com **Abrir no terminal interativo** marcado (fica lembrado), o agente
-  começa direto no terminal do Habblaud, já com o pedido e os anexos, em vez de em segundo plano: dá para digitar,
-  responder e usar os comandos sem precisar de "Assumir daqui". Só com o terminal interativo ligado (`HABBLAUD_PTY=1`).
+  começa em segundo plano e já abre no terminal do Habblaud (`claude attach`), com o pedido e os anexos: dá para
+  digitar, responder e usar os comandos sem precisar de "Assumir daqui", e reiniciar o Habblaud não encerra o agente.
+  Só com o terminal interativo ligado (`HABBLAUD_PTY=1`).
+- **`npm run agents:stop`:** encerra os agentes em segundo plano que o Habblaud abriu (anotados em
+  `~/.habblaud/launched.json`) com `claude stop`; a conversa fica guardada. Sessões abertas à mão não são tocadas.
 - Com a gravação desligada (`HABBLAUD_TIMELINE=0`), o botão **Timelapse** e a tecla `L` somem.
 
 - **Estado da sala na placa e na luz:** a faixa à esquerda da placa de cada sala de projeto passa a mostrar o estado

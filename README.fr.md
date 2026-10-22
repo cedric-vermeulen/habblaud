@@ -502,6 +502,10 @@ liste latérale ou la touche `T` ouvrent la même fenêtre, avec des onglets pou
   désactive les modes souris/clavier que Claude avait activés).
 - Session en arrière-plan (lancée par **Nouvel agent**, `claude --bg`) : **Prendre le contrôle ici** l'ouvre simplement ici
   (`claude attach`), sans rien fermer ; fermer la fenêtre la laisse tourner et **Fermer** passe par `claude stop`.
+- **Nouvel agent** avec **Ouvrir dans le terminal interactif** la lance de la même façon (en arrière-plan, ouverte ici
+  avec `claude attach`) : redémarrer Habblaud ne l'arrête pas. `npm run agents:stop` arrête tous les agents en
+  arrière-plan lancés par Habblaud (notés dans `~/.habblaud/launched.json`), conversations gardées ; vos propres
+  sessions ne sont pas touchées.
 - **Fermer** met fin à la session, qu'elle soit ici ou dans un autre terminal (la conversation reste enregistrée).
 - **Nouvelle session** (dans le panneau de la salle) ouvre un nouveau Claude Code dans le dossier du projet.
 

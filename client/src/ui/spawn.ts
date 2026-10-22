@@ -240,7 +240,7 @@ export class SpawnPanel {
     setText(
       this.hint,
       this.inPty
-        ? tr('Abre o Claude Code num terminal interativo do Habblaud, na pasta escolhida, já com o pedido: dá para digitar, responder e usar os comandos. A sessão vive enquanto o Habblaud estiver aberto. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.')
+        ? tr('Começa a sessão em segundo plano e já abre no terminal interativo do Habblaud, com o pedido: dá para digitar, responder e usar os comandos. Reiniciar o Habblaud não encerra o agente (o npm run agents:stop encerra). Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.')
         : tr('Começa na hora uma sessão do Claude Code em segundo plano no computador, na pasta escolhida; as permissões chegam aqui. Pasta que o Claude Code ainda não conhece abre no app do Claude e espera o Enter lá. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.'),
     );
   }
@@ -324,7 +324,7 @@ export class SpawnPanel {
       const terminals = this.ctx.terminals;
       if (this.inPty && terminals) {
         this.say(tr('Abrindo o terminal…'));
-        await terminals.newSession(folder, undefined, { prompt: this.prompt.value, ...(ids.length ? { attachments: ids } : {}) });
+        await terminals.newSession(folder, undefined, { prompt: this.prompt.value, background: true, ...(ids.length ? { attachments: ids } : {}) });
         this.prompt.value = '';
         this.files.clear();
         writePref(LAST_FOLDER_KEY, folder);
