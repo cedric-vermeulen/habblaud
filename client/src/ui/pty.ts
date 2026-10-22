@@ -10,7 +10,7 @@ import type { UiComponent, UiContext } from './context';
 import { h, iconButton, setHidden, setText } from './dom';
 import { ICONS } from './icons';
 import { maximizeButton, Movable } from './movable';
-import { closePty, createPty, stopAgent, takeoverAgent } from './ptyapi';
+import { closePty, createPty, stopAgent, takeoverAgent, type PtyStart } from './ptyapi';
 import type { PtyPane } from './ptypane';
 import { TermActions } from './termactions';
 import { TermTabs } from './termtabs';
@@ -32,7 +32,7 @@ export interface PtyControl {
   openAgent(agentId: string): void;
   close(): void;
   takeover(agentId: string): Promise<void>;
-  newSession(cwd: string, account?: string): Promise<void>;
+  newSession(cwd: string, account?: string, start?: PtyStart): Promise<void>;
   stop(agentId: string): Promise<void>;
 }
 
@@ -144,8 +144,8 @@ export class PtyPanel implements UiComponent, PtyControl {
     if (p) this.show(p, true);
   }
 
-  async newSession(cwd: string, account?: string): Promise<void> {
-    const p = await createPty(cwd, account);
+  async newSession(cwd: string, account?: string, start?: PtyStart): Promise<void> {
+    const p = await createPty(cwd, account, start);
     if (p) this.show(p, true);
   }
 

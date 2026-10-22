@@ -3,6 +3,7 @@
 // (GET /api/spawn/folders: histórico de sessões + salas), para escolher com um toque; "Outra pasta" aceita um caminho
 // digitado. O pedido pode levar anexos (POST /api/spawn/attachments, um por arquivo, antes do pedido) e ser ditado
 // (ui/dictation.ts, Whisper local no Mac). Pasta que o Claude Code não conhece cai no app (Enter lá).
+// Com "Abrir no terminal interativo", a sessão abre no terminal do Habblaud (POST /api/pty, com o pedido e os anexos).
 import { tr } from '../../../shared/i18n';
 import { isDemoId } from '../../../shared/timeline';
 import type { OfficeSnapshot } from '../../../shared/types';
@@ -20,6 +21,7 @@ const POLL_MS = 700;
  */
 const WAIT_MS = 90_000;
 const LAST_FOLDER_KEY = 'habblaud.spawn.folder';
+const INTERACTIVE_KEY = 'habblaud.spawn.interactive';
 
 interface SpawnInfo {
   id: string;
@@ -64,17 +66,17 @@ export function ago(at: number, now = Date.now()): string {
   return `${Math.round(hours / 24)} d`;
 }
 
-function readPref(): string {
+function readPref(key: string): string {
   try {
-    return localStorage.getItem(LAST_FOLDER_KEY) ?? '';
+    return localStorage.getItem(key) ?? '';
   } catch {
     return '';
   }
 }
 
-function writePref(path: string): void {
+function writePref(key: string, value: string): void {
   try {
-    localStorage.setItem(LAST_FOLDER_KEY, path);
+    localStorage.setItem(key, value);
   } catch {
     // sem armazenamento: só não lembra
   }
@@ -89,6 +91,9 @@ export class SpawnPanel {
   private readonly fileInput: HTMLInputElement;
   private readonly files: FileTray;
   private readonly dictate: DictationButton;
+  private readonly interactive: HTMLInputElement;
+  private readonly interactiveRow: HTMLElement;
+  private readonly hint: HTMLElement;
   private readonly submitBtn: HTMLButtonElement;
   private readonly status: HTMLElement;
   private anchor?: HTMLElement;
@@ -130,6 +135,14 @@ export class SpawnPanel {
       (text, error) => this.say(text, error),
     );
     setHidden(this.dictate.el, true);
+    this.interactive = h('input', { type: 'checkbox', class: 'ui-perm__check' });
+    this.interactive.checked = readPref(INTERACTIVE_KEY) === '1';
+    this.interactive.addEventListener('change', () => {
+      writePref(INTERACTIVE_KEY, this.interactive.checked ? '1' : '0');
+      this.syncMode();
+    });
+    this.interactiveRow = h('label', { class: 'ui-perm__check-row', hidden: true }, this.interactive, h('span', { text: tr('Abrir no terminal interativo') }));
+    this.hint = h('p', { class: 'ui-rename__hint' });
     this.submitBtn = h('button', { class: 'ui-btn ui-perm__btn ui-perm__btn--allow ui-spawn__go', type: 'button', on: { click: () => void this.submit() } }, tr('Começar'));
     this.status = h('p', { class: 'ui-rename__hint ui-spawn__status', attrs: { role: 'status', 'aria-live': 'polite' } });
     for (const field of [this.folder, this.prompt] as HTMLElement[]) {
@@ -162,7 +175,8 @@ export class SpawnPanel {
         this.prompt,
         h('div', { class: 'ui-spawn__tools' }, this.dictate.el, attachBtn, this.fileInput),
         this.files.el,
-        h('p', { class: 'ui-rename__hint', text: tr('Começa na hora uma sessão do Claude Code em segundo plano no computador, na pasta escolhida; as permissões chegam aqui. Pasta que o Claude Code ainda não conhece abre no app do Claude e espera o Enter lá. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.') }),
+        this.interactiveRow,
+        this.hint,
         this.submitBtn,
         this.status,
       ),
@@ -188,6 +202,8 @@ export class SpawnPanel {
     if (!this.folders.length) this.setFolders(spawnFolders(this.ctx.store.snapshot).map((path) => ({ path, name: path.split(/[\\/]/).pop() || path, lastAt: 0 })));
     void this.loadFolders();
     void this.checkDictation();
+    setHidden(this.interactiveRow, !this.ctx.terminals?.interactiveEnabled);
+    this.syncMode();
     if (!this.busy) setText(this.status, '');
     const r = anchor.getBoundingClientRect();
     this.el.style.top = `${Math.round(r.bottom + 8)}px`;
@@ -215,6 +231,20 @@ export class SpawnPanel {
     }
   }
 
+  /** Abre no terminal interativo: marcado e com o recurso ligado. */
+  private get inPty(): boolean {
+    return this.interactive.checked && !!this.ctx.terminals?.interactiveEnabled;
+  }
+
+  private syncMode(): void {
+    setText(
+      this.hint,
+      this.inPty
+        ? tr('Abre o Claude Code num terminal interativo do Habblaud, na pasta escolhida, já com o pedido: dá para digitar, responder e usar os comandos. A sessão vive enquanto o Habblaud estiver aberto. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.')
+        : tr('Começa na hora uma sessão do Claude Code em segundo plano no computador, na pasta escolhida; as permissões chegam aqui. Pasta que o Claude Code ainda não conhece abre no app do Claude e espera o Enter lá. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.'),
+    );
+  }
+
   private async checkDictation(): Promise<void> {
     setHidden(this.dictate.el, !(await dictationAvailable()));
   }
@@ -222,7 +252,7 @@ export class SpawnPanel {
   private setFolders(list: FolderOption[]): void {
     this.folders = list;
     if (!this.selected) {
-      const pref = readPref();
+      const pref = readPref(LAST_FOLDER_KEY);
       this.selected = list.some((f) => f.path === pref) ? pref : (list[0]?.path ?? '');
     }
     this.renderFolders();
@@ -291,6 +321,17 @@ export class SpawnPanel {
     this.submitBtn.disabled = true;
     try {
       const ids = await this.files.upload('/api/spawn/attachments', (text) => this.say(text));
+      const terminals = this.ctx.terminals;
+      if (this.inPty && terminals) {
+        this.say(tr('Abrindo o terminal…'));
+        await terminals.newSession(folder, undefined, { prompt: this.prompt.value, ...(ids.length ? { attachments: ids } : {}) });
+        this.prompt.value = '';
+        this.files.clear();
+        writePref(LAST_FOLDER_KEY, folder);
+        this.say('');
+        this.hide();
+        return;
+      }
       this.say(tr('Começando no computador…'));
       let info = await api<SpawnInfo>('/api/spawn', {
         method: 'POST',
@@ -314,7 +355,7 @@ export class SpawnPanel {
         );
         this.prompt.value = '';
         this.files.clear();
-        writePref(folder);
+        writePref(LAST_FOLDER_KEY, folder);
         this.ctx.announce(running ? tr('Agente novo rodando.') : tr('Agente novo aberto no app do Claude.'));
       } else this.say(info.error ? tr('Não abriu: {0}', [info.error]) : tr('O computador não confirmou a abertura.'), true);
     } catch (err) {

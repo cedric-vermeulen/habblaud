@@ -145,3 +145,21 @@ export function promptWithAttachments(prompt: string, paths: readonly string[]):
   const head = paths.length === 1 ? tr('Anexo enviado pelo Habblaud (leia antes de começar):') : tr('Anexos enviados pelo Habblaud (leia antes de começar):');
   return `${prompt.trim() ? `${prompt.trimEnd()}\n\n` : ''}${head}\n${list}`;
 }
+
+/** Anexos gravados pelo próprio servidor (mensagens, terminal interativo); ausente no Docker. */
+export interface AttachmentFiles {
+  store: AttachmentStore;
+  /** Grava os anexos numa pasta nova e devolve os caminhos, na ordem. */
+  write: (files: readonly Attachment[]) => string[];
+}
+
+/** Tira os anexos `ids` do depósito e grava: os caminhos, na ordem, ou o motivo da recusa. */
+export function takeAndWrite(files: AttachmentFiles, ids: unknown): string[] | { error: string } {
+  const taken = files.store.take(ids);
+  if ('error' in taken) return taken;
+  try {
+    return files.write(taken);
+  } finally {
+    files.store.release(taken.reduce((n, f) => n + f.data.length, 0));
+  }
+}

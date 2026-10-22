@@ -14,7 +14,7 @@ import { rmSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { dirname } from 'node:path';
 import { HttpError, readJson, sendJson } from '../http/app';
-import { ATTACHMENT_BODY_MAX, parseAttachment, promptWithAttachments, type Attachment, type AttachmentStore } from '../spawn/attachments';
+import { ATTACHMENT_BODY_MAX, parseAttachment, promptWithAttachments, takeAndWrite, type AttachmentFiles } from '../spawn/attachments';
 import { InvalidRequest, MAX_OPEN, type MessageRegistry, type SendResult } from './registry';
 import { tr } from '../../shared/i18n';
 
@@ -32,29 +32,18 @@ function fail(res: ServerResponse, err: unknown): void {
   else sendJson(res, 500, { error: tr('erro interno') });
 }
 
-/** Anexos das mensagens: o servidor grava os arquivos neste computador (ausente no Docker). */
-export interface MessageFiles {
-  store: AttachmentStore;
-  /** Grava os anexos de uma mensagem numa pasta nova e devolve os caminhos, na ordem. */
-  write: (files: readonly Attachment[]) => string[];
-}
-
 const FILES_OFF = tr('Anexos nas mensagens só funcionam com o Habblaud fora do Docker (npm start)');
 
-export function createMessageRoutes(registry: MessageRegistry, files?: MessageFiles): (req: IncomingMessage, res: ServerResponse, path: string) => void {
+export function createMessageRoutes(registry: MessageRegistry, files?: AttachmentFiles): (req: IncomingMessage, res: ServerResponse, path: string) => void {
   const send = async (req: IncomingMessage, res: ServerResponse) => {
     const body = await readJson(req);
     const ids = body && typeof body === 'object' ? (body as Record<string, unknown>).attachments : undefined;
     let paths: string[] = [];
     if (ids !== undefined) {
       if (!files) return sendJson(res, 409, { error: FILES_OFF });
-      const taken = files.store.take(ids);
-      if ('error' in taken) return sendJson(res, 400, { error: taken.error });
-      try {
-        paths = files.write(taken);
-      } finally {
-        files.store.release(taken.reduce((n, f) => n + f.data.length, 0));
-      }
+      const written = takeAndWrite(files, ids);
+      if ('error' in written) return sendJson(res, 400, { error: written.error });
+      paths = written;
     }
     // Mensagem recusada: os arquivos gravados para ela não servem a mais nada.
     const discard = () => paths.length && rmSync(dirname(paths[0]!), { recursive: true, force: true });
