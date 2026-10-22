@@ -475,6 +475,8 @@ abrem a mesma janela, com abas para os outros agentes do mesmo projeto.
 - Sessão aberta noutro terminal: **Assumir daqui** (no topo da janela) encerra a sessão lá e continua a **mesma
   conversa** aqui (`claude --resume <sessão>`, na mesma pasta e conta). O personagem mantém o nome. No Windows, o
   terminal de onde a sessão saiu volta ao normal (o Habblaud desliga os modos de mouse/teclado que o Claude ligou).
+- Sessão em segundo plano (aberta pelo **Novo agente**, `claude --bg`): **Assumir daqui** só a abre aqui (`claude attach`),
+  sem encerrar nada; fechar a janela a deixa rodando e **Encerrar** usa `claude stop`.
 - **Encerrar** fecha a sessão, esteja ela aqui ou noutro terminal (a conversa fica salva).
 - **Nova sessão** (na gaveta da sala) abre um Claude Code novo na pasta do projeto.
 

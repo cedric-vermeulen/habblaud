@@ -477,6 +477,8 @@ open the same window, with tabs for the other agents in the same project.
 - Session opened in another terminal: **Take over here** (at the top of the window) ends the session there and continues the **same
   conversation** here (`claude --resume <sessão>`, in the same folder and account). The character keeps its name. On Windows, the
   terminal the session came from goes back to normal (Habblaud turns off the mouse/keyboard modes that Claude turned on).
+- Background session (started by **New agent**, `claude --bg`): **Take over here** just opens it here (`claude attach`),
+  without ending anything; closing the window leaves it running and **End** uses `claude stop`.
 - **End** closes the session, whether it's here or in another terminal (the conversation is saved).
 - **New session** (in the room's drawer) opens a new Claude Code in the project folder.
 

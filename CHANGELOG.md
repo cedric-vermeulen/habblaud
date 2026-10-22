@@ -44,6 +44,9 @@ do meio (0.**3**.0).
   termina sozinho (`pnpm dev`, `vite`, `next dev`, `nodemon`, `--watch`, `docker compose up` sem `-d`...) não conta
   como espera desde o início; qualquer outro, depois de 10 minutos. O agente fica ocioso e o shell continua listado
   nos detalhes.
+- **Terminal: “Assumir daqui” num agente do Novo agente não cria mais um agente duplicado.** A sessão em segundo plano
+  (`claude --bg`) era encerrada e o serviço do Claude Code a reabria na hora, ao lado da cópia retomada aqui: dois
+  agentes na mesma conversa. Agora ela só é aberta no terminal (`claude attach`), e **Encerrar** usa `claude stop`.
 
 ## [1.0.3] - 2026-10-16
 
