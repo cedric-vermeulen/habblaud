@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { ptyRequestProblem } from '../http/pty';
+import { PROMPT_MAX } from '../spawn/spawn';
 import {
   claudeBinFrom,
   findExecutable,
@@ -298,6 +299,22 @@ describe('PtyManager: tela para quem conecta', () => {
     expect(text.indexOf('durante')).toBeGreaterThan(text.indexOf('[tela:antes ]'));
     proc!.data('depois');
     expect(out.join('')).toContain('depois');
+  });
+});
+
+describe('PtyManager: sessão nova com pedido', () => {
+  it('o pedido vai depois de `--`; vazio abre sem argumentos', () => {
+    const s = setup();
+    s.manager.create({ cwd: tmpdir(), prompt: '--help e depois /init' });
+    s.manager.create({ cwd: tmpdir(), prompt: '   ' });
+    expect(s.spawned.map((p) => p.args)).toEqual([['--', '--help e depois /init'], []]);
+  });
+
+  it('recusa pedido grande demais ou que não é texto', () => {
+    const s = setup();
+    expect(() => s.manager.create({ cwd: tmpdir(), prompt: 'x'.repeat(PROMPT_MAX + 1) })).toThrow(PtyError);
+    expect(() => s.manager.create({ cwd: tmpdir(), prompt: 42 })).toThrow(PtyError);
+    expect(s.spawned).toHaveLength(0);
   });
 });
 

@@ -22,6 +22,9 @@ do meio (0.**3**.0).
   detalhes do agente. Como no **Novo agente**, eles vão para `~/.habblaud/attachments` e a mensagem leva os caminhos
   para o agente ler (até 8 por mensagem, 15 MB cada). Só com o Habblaud fora do Docker (`npm start`). O **Novo agente**
   também passa a aceitar colar e soltar arquivos no pedido.
+- **Novo agente no terminal interativo:** com **Abrir no terminal interativo** marcado (fica lembrado), o agente
+  começa direto no terminal do Habblaud, já com o pedido e os anexos, em vez de em segundo plano: dá para digitar,
+  responder e usar os comandos sem precisar de "Assumir daqui". Só com o terminal interativo ligado (`HABBLAUD_PTY=1`).
 - Com a gravação desligada (`HABBLAUD_TIMELINE=0`), o botão **Timelapse** e a tecla `L` somem.
 
 - **Estado da sala na placa e na luz:** a faixa à esquerda da placa de cada sala de projeto passa a mostrar o estado

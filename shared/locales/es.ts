@@ -2347,6 +2347,8 @@ export const ES: Readonly<Record<string, string>> = {
   "Enviando anexos ({0} de {1})…": "Enviando adjuntos ({0} de {1})…",
   "Enviando o anexo…": "Enviando el adjunto…",
   "Começando no computador…": "Iniciando en el equipo…",
+  "Abrir no terminal interativo": "Abrir en el terminal interactivo",
+  "Abre o Claude Code num terminal interativo do Habblaud, na pasta escolhida, já com o pedido: dá para digitar, responder e usar os comandos. A sessão vive enquanto o Habblaud estiver aberto. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.": "Abre Claude Code en un terminal interactivo de Habblaud, en la carpeta elegida, con el pedido ya enviado: puedes escribir, responder y usar los comandos. La sesión vive mientras Habblaud esté abierto. Los adjuntos van a ~/.habblaud/attachments y el pedido lleva sus rutas.",
   "Rodando: a sessão já começou no computador e aparece no escritório em instantes.": "En ejecución: la sesión ya empezó en el equipo y aparecerá en la oficina en unos instantes.",
   "Abri no app do Claude: aperte Enter lá para começar. Não rodou sozinho: {0}.": "Lo abrí en la app de Claude: presiona Enter allí para empezar. No se ejecutó solo: {0}.",
   "Abri no app do Claude: aperte Enter lá para começar.": "Lo abrí en la app de Claude: presiona Enter allí para empezar.",

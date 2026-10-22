@@ -44,7 +44,7 @@ import { getLocale, tr } from '../shared/i18n';
 import type { WorldLocale } from '../shared/world/protocol';
 import { createCliRunner, createOpener, SpawnService } from './spawn/spawn';
 import { runnableClaudeBin } from './claude-bin';
-import { AttachmentStore, attachmentsRoot, writeAttachments } from './spawn/attachments';
+import { AttachmentStore, attachmentsRoot, writeAttachments, type Attachment } from './spawn/attachments';
 import { recentFolders } from './spawn/folders';
 import { isDemoId } from '../shared/timeline';
 import { DictationService } from './dictation/dictation';
@@ -259,6 +259,7 @@ const ptyOptIn = isTruthy(ptyFlag);
 const spawnOn = config.messages && ptyOptIn;
 // Anexos do Novo agente e das mensagens (estas só fora do Docker: o servidor grava os arquivos no computador).
 const attachments = config.messages ? new AttachmentStore() : undefined;
+const attachmentFiles = attachments && !config.inDocker ? { store: attachments, write: (files: readonly Attachment[]) => writeAttachments(attachmentsRoot(), randomUUID(), files) } : undefined;
 const spawnBin = config.inDocker ? undefined : runnableClaudeBin(process.env);
 const spawn = spawnOn
   ? new SpawnService(config.inDocker ? { attachments } : { opener: createOpener(), cli: spawnBin ? createCliRunner(spawnBin) : undefined, attachments })
@@ -360,10 +361,8 @@ const api = createApiHandler({
   sessions: history,
   timeline: createTimelineHandler({ dir: timelineDir, recording: !!timeline }),
   permissions: permissions ? createPermissionRoutes(permissions) : undefined,
-  messages: messages
-    ? createMessageRoutes(messages, attachments && !config.inDocker ? { store: attachments, write: (files) => writeAttachments(attachmentsRoot(), randomUUID(), files) } : undefined)
-    : undefined,
-  pty: ptys ? createPtyRoutes(ptys) : undefined,
+  messages: messages ? createMessageRoutes(messages, attachmentFiles) : undefined,
+  pty: ptys ? createPtyRoutes(ptys, attachmentFiles) : undefined,
   spawn,
   attachments,
   dictation,

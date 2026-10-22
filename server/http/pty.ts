@@ -1,6 +1,6 @@
 // Rotas do terminal interativo (PtyManager, server/pty/manager.ts):
 //   GET  /api/pty                      estado do recurso e terminais abertos
-//   POST /api/pty                      {cwd, account?, cols?, rows?}: sessão nova do Claude Code
+//   POST /api/pty                      {cwd, account?, cols?, rows?, prompt?, attachments?}: sessão nova do Claude Code
 //   GET  /api/pty/:id/stream           SSE: reset (tela guardada) | data | exit
 //   POST /api/pty/:id/input|resize|close
 //   POST /api/agents/:id/stop          encerra o agente (aqui ou noutro terminal)
@@ -9,6 +9,7 @@
 // local e (quando o navegador manda) Origin da mesma origem. A borda (http/guard.ts) já exige JSON nos POST.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { PtyError, type PtyManager } from '../pty/manager';
+import { promptWithAttachments, takeAndWrite, type AttachmentFiles } from '../spawn/attachments';
 import { HttpError, readJson, sendJson } from './app';
 import { isLoopbackHost } from './guard';
 import { tr } from '../../shared/i18n';
@@ -43,7 +44,7 @@ export function ptyRequestProblem(req: IncomingMessage): string | null {
   return null;
 }
 
-export function createPtyRoutes(ptys: PtyManager): (req: IncomingMessage, res: ServerResponse, path: string) => void {
+export function createPtyRoutes(ptys: PtyManager, files?: AttachmentFiles): (req: IncomingMessage, res: ServerResponse, path: string) => void {
   const fail = (res: ServerResponse, err: unknown) => {
     if (res.headersSent) return void res.destroy();
     if (err instanceof HttpError || err instanceof PtyError) sendJson(res, err.status, { error: err.message });
@@ -85,7 +86,14 @@ export function createPtyRoutes(ptys: PtyManager): (req: IncomingMessage, res: S
       if (method === 'GET') return sendJson(res, 200, { status: ptys.status(), ptys: ptys.list() });
       if (method !== 'POST') return notAllowed(res, 'GET, POST');
       const body = (await readJson(req)) as Record<string, unknown>;
-      return sendJson(res, 201, ptys.create({ cwd: body?.cwd, account: body?.account, cols: body?.cols, rows: body?.rows }));
+      let prompt = body?.prompt;
+      if (body?.attachments !== undefined) {
+        if (!files) throw new HttpError(409, tr('anexos desligados'));
+        const paths = takeAndWrite(files, body.attachments);
+        if ('error' in paths) throw new HttpError(400, paths.error);
+        prompt = promptWithAttachments(typeof prompt === 'string' ? prompt : '', paths);
+      }
+      return sendJson(res, 201, ptys.create({ cwd: body?.cwd, account: body?.account, cols: body?.cols, rows: body?.rows, prompt }));
     }
     const id = decode(rawId);
     if (act === 'stream') {

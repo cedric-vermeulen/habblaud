@@ -24,6 +24,7 @@ import { readProcInfo, sameProcess, type ProcInfo, type RegisteredProc } from '.
 import { killWithConsoleReset } from './winkill';
 import { tr } from '../../shared/i18n';
 import { isExecutableFile } from '../claude-bin';
+import { PROMPT_MAX } from '../spawn/spawn';
 
 export { claudeBinFrom, findExecutable, isExecutableFile } from '../claude-bin';
 
@@ -241,9 +242,12 @@ export class PtyManager {
     return [...this.ptys.values()].map((t) => ({ ...t.info }));
   }
 
-  /** Abre uma sessão nova do Claude Code na pasta (`cwd` absoluto), na conta pedida (ou na padrão). */
-  create(p: { cwd: unknown; account?: unknown; cols?: unknown; rows?: unknown }): PtyInfo {
-    return this.spawn(this.plan(p, this.takeovers.size));
+  /** Abre uma sessão nova do Claude Code na pasta (`cwd` absoluto), na conta pedida (ou na padrão), com o pedido inicial. */
+  create(p: { cwd: unknown; account?: unknown; cols?: unknown; rows?: unknown; prompt?: unknown }): PtyInfo {
+    if (p.prompt !== undefined && (typeof p.prompt !== 'string' || p.prompt.length > PROMPT_MAX || p.prompt.includes('\0'))) {
+      throw new PtyError(400, tr('o pedido passa de {0} caracteres', [PROMPT_MAX]));
+    }
+    return this.spawn(this.plan(p, this.takeovers.size), { prompt: p.prompt?.trim() || undefined });
   }
 
   /**
@@ -436,7 +440,7 @@ export class PtyManager {
   }
 
   /** `attach`: abre a sessão em segundo plano `attach` neste terminal, que passa a ser o do agente `agentId`. */
-  private spawn(plan: SpawnPlan, p: { resume?: string; from?: string; attach?: string; agentId?: string } = {}): PtyInfo {
+  private spawn(plan: SpawnPlan, p: { resume?: string; from?: string; attach?: string; agentId?: string; prompt?: string } = {}): PtyInfo {
     const spawn = this.opts.spawn;
     if (!spawn) throw new PtyError(503, tr('terminal desligado: {0}', [this.opts.disabledReason ?? tr('indisponível')]));
     const { cwd, account, cols, rows } = plan;
@@ -444,7 +448,8 @@ export class PtyManager {
 
     let proc: PtyProcess;
     try {
-      const args = p.attach ? ['attach', p.attach] : p.resume ? ['--resume', p.resume] : [];
+      // O pedido vai depois de `--`: nunca vira opção nem subcomando.
+      const args = p.attach ? ['attach', p.attach] : p.resume ? ['--resume', p.resume] : p.prompt ? ['--', p.prompt] : [];
       proc = spawn(this.opts.claudeBin, args, { cwd, cols, rows, env });
     } catch (err) {
       throw new PtyError(500, tr('não consegui abrir o Claude Code: {0}', [errMsg(err)]));
