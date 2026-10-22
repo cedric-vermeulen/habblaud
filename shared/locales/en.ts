@@ -1837,6 +1837,7 @@ export const EN: Readonly<Record<string, string>> = {
   "a sessão no outro terminal não encerrou nem à força; ela continua aberta lá": "the session in the other terminal didn't close, even when forced; it's still open there",
   "a sessão foi encerrada no outro terminal, mas não abriu aqui ({0}); para continuar: claude --resume {1}": "the session was ended in the other terminal, but didn't open here ({0}); to continue: claude --resume {1}",
   "Agente {0} assumido pelo escritório (sessão {1}).": "Agent {0} taken over by the office (session {1}).",
+  "Agente {0} aberto pelo escritório (sessão em segundo plano {1}).": "Agent {0} opened in the office (background session {1}).",
   "entrada inválida": "invalid input",
   "informe a pasta do projeto (caminho absoluto)": "provide the project folder (absolute path)",
   "pasta não encontrada: {0}": "folder not found: {0}",

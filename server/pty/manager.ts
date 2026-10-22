@@ -5,10 +5,13 @@
 // Três usos: sessão nova numa pasta; "assumir" uma sessão aberta noutro terminal (o processo de lá é
 // encerrado e a mesma conversa continua aqui com `claude --resume`); e encerrar um agente, esteja ele aqui
 // ou noutro terminal (só processos que o registro de sessões do Claude Code confirma como sessão e cujo início
-// e executável batem com o registro: pty/procinfo.ts).
+// e executável batem com o registro: pty/procinfo.ts). Sessão em segundo plano (`claude --bg`, kind "bg" no
+// registro): o serviço do Claude Code a reabre se o processo morre, então assumir é `claude attach <job>` (nada
+// é encerrado) e encerrar é `claude stop <job>`.
 //
 // Segurança: quem controla um terminal destes executa comandos na máquina. O recurso é opt-in (HABBLAUD_PTY=1),
 // as rotas só aceitam conexões do próprio computador (ver http/pty.ts) e ele fica desligado no Docker.
+import { execFile } from 'node:child_process';
 import { chmodSync, readFileSync, statSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createRequire } from 'node:module';
@@ -87,6 +90,8 @@ export interface PtyManagerOptions {
   procInfo?: (pid: number) => Promise<ProcInfo | undefined>;
   /** Lê `<conta>/sessions/<pid>.json` (testes). */
   readSession?: (accountDir: string, pid: number) => unknown;
+  /** Encerra uma sessão em segundo plano (padrão: `claude stop <job>`). */
+  stopJob?: (job: string, env: NodeJS.ProcessEnv) => Promise<void>;
   /** Tela de cada terminal, reproduzida para quem conecta (padrão: só a saída bruta; ver pty/screen.ts). */
   createScreen?: ScreenFactory;
   isAlive?: (pid: number) => boolean;
@@ -103,6 +108,9 @@ const TAKEOVER_WAIT_MS = 5_000;
 /** Depois de encerrar à força: quanto mais esperar. */
 const FORCE_WAIT_MS = 3_000;
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Id de sessão em segundo plano (`jobId` do registro, ex.: "832df8ae"). */
+const JOB_ID = /^[\w-]{1,64}$/;
+const STOP_JOB_TIMEOUT_MS = 15_000;
 /** Id de agente principal: "<conta>:<pid>". */
 const MAIN_ID = /^(.+):(\d+)$/;
 
@@ -161,6 +169,8 @@ interface Pty {
 interface ExternalProc {
   pid: number;
   proc: ProcInfo;
+  /** Sessão em segundo plano: o id para `claude attach`/`claude stop`. */
+  job?: string;
 }
 
 /** O que uma sessão nova precisa, já validado (pasta, conta e tamanho). */
@@ -190,6 +200,7 @@ export class PtyManager {
   private readonly forceKill: (pid: number) => void;
   private readonly procInfo: (pid: number) => Promise<ProcInfo | undefined>;
   private readonly readSession: (accountDir: string, pid: number) => unknown;
+  private readonly stopJob: (job: string, env: NodeJS.ProcessEnv) => Promise<void>;
   private readonly createScreen: ScreenFactory;
   private readonly isAlive: (pid: number) => boolean;
   private readonly sleep: (ms: number) => Promise<void>;
@@ -204,6 +215,15 @@ export class PtyManager {
         : (pid) => void process.kill(pid, 'SIGTERM'));
     this.forceKill = opts.forceKill ?? ((pid) => void process.kill(pid, 'SIGKILL'));
     this.readSession = opts.readSession ?? ((dir, pid) => JSON.parse(readFileSync(join(dir, 'sessions', `${pid}.json`), 'utf8')));
+    this.stopJob =
+      opts.stopJob ??
+      ((job, env) =>
+        new Promise((ok, fail) => {
+          execFile(opts.claudeBin, ['stop', job], { env, timeout: STOP_JOB_TIMEOUT_MS, windowsHide: true }, (err, _out, stderr) => {
+            if (err) fail(new Error(stderr.trim() || err.message));
+            else ok();
+          });
+        }));
     this.createScreen = opts.createScreen ?? (() => rawScreen());
     this.isAlive = opts.isAlive ?? pidAlive;
     this.sleep = opts.sleep ?? ((ms) => new Promise((ok) => setTimeout(ok, ms)));
@@ -233,13 +253,16 @@ export class PtyManager {
    */
   async stop(agentId: string): Promise<void> {
     const own = this.byAgent(agentId);
-    if (own) {
+    if (own && !own.info.attached) {
       this.kill(own);
       return;
     }
-    const ext = await this.external(agentId);
+    // Aberta aqui com `claude attach`: fechar o terminal só desconecta; quem encerra é o `claude stop`.
+    const ext = own ? undefined : await this.external(agentId);
+    const job = own?.info.attached ?? ext?.job;
     try {
-      await this.killPid(ext.pid, ext.proc);
+      if (job) await this.stopJob(job, this.sessionEnv(this.account(own?.info.account ?? this.mainAgent(agentId).account)));
+      else if (ext) await this.killPid(ext.pid, ext.proc);
     } catch (err) {
       throw new PtyError(500, tr('não consegui encerrar a sessão: {0}', [errMsg(err)]));
     }
@@ -271,6 +294,11 @@ export class PtyManager {
     // As outras tomadas em andamento já têm uma vaga prometida.
     const plan = this.plan({ cwd: agent.cwd, account: agent.account, cols: size.cols, rows: size.rows }, this.takeovers.size - 1);
     const ext = await this.external(agentId);
+    if (ext.job) {
+      const info = this.spawn(plan, { attach: ext.job, agentId });
+      log.info(tr('Agente {0} aberto pelo escritório (sessão em segundo plano {1}).', [agentId, ext.job]));
+      return info;
+    }
     try {
       await this.killPid(ext.pid, ext.proc);
     } catch (err) {
@@ -392,24 +420,38 @@ export class PtyManager {
     return { cwd, account, cols: clampInt(p.cols, 20, 400, 100), rows: clampInt(p.rows, 5, 200, 30) };
   }
 
-  private spawn(plan: SpawnPlan, p: { resume?: string; from?: string } = {}): PtyInfo {
-    const spawn = this.opts.spawn;
-    if (!spawn) throw new PtyError(503, tr('terminal desligado: {0}', [this.opts.disabledReason ?? tr('indisponível')]));
-    const { cwd, account, cols, rows } = plan;
+  /** Ambiente do Claude Code aberto pelo Habblaud, na conta pedida. */
+  private sessionEnv(account: PtyAccount): NodeJS.ProcessEnv {
     const env: NodeJS.ProcessEnv = { ...(this.opts.env ?? process.env), TERM: 'xterm-256color', COLORTERM: 'truecolor' };
     for (const k of INHERITED_SESSION_VARS) delete env[k];
     if (account.isDefault) delete env.CLAUDE_CONFIG_DIR;
     else env.CLAUDE_CONFIG_DIR = account.dir;
+    return env;
+  }
+
+  private account(id: string): PtyAccount {
+    const account = this.opts.accounts().find((a) => a.id === id);
+    if (!account) throw new PtyError(400, tr('conta desconhecida'));
+    return account;
+  }
+
+  /** `attach`: abre a sessão em segundo plano `attach` neste terminal, que passa a ser o do agente `agentId`. */
+  private spawn(plan: SpawnPlan, p: { resume?: string; from?: string; attach?: string; agentId?: string } = {}): PtyInfo {
+    const spawn = this.opts.spawn;
+    if (!spawn) throw new PtyError(503, tr('terminal desligado: {0}', [this.opts.disabledReason ?? tr('indisponível')]));
+    const { cwd, account, cols, rows } = plan;
+    const env = this.sessionEnv(account);
 
     let proc: PtyProcess;
     try {
-      const args = p.resume ? ['--resume', p.resume] : [];
+      const args = p.attach ? ['attach', p.attach] : p.resume ? ['--resume', p.resume] : [];
       proc = spawn(this.opts.claudeBin, args, { cwd, cols, rows, env });
     } catch (err) {
       throw new PtyError(500, tr('não consegui abrir o Claude Code: {0}', [errMsg(err)]));
     }
     const id = `p${++this.seq}-${proc.pid}`;
-    const info: PtyInfo = { id, pid: proc.pid, cwd, account: account.id, agentId: `${account.id}:${proc.pid}`, startedAt: this.now() };
+    const info: PtyInfo = { id, pid: proc.pid, cwd, account: account.id, agentId: p.agentId ?? `${account.id}:${proc.pid}`, startedAt: this.now() };
+    if (p.attach) info.attached = p.attach;
     if (p.resume) info.resumed = p.resume;
     if (p.from) info.fromAgent = p.from;
     const pty: Pty = { info, proc, screen: this.createScreen(cols, rows), clients: new Set(), pending: new Map() };
@@ -451,15 +493,14 @@ export class PtyManager {
     const m = MAIN_ID.exec(agent.id);
     const pid = m ? Number(m[2]) : NaN;
     if (!m || m[1] !== agent.account || !Number.isSafeInteger(pid) || pid <= 0) throw new PtyError(400, tr('agente sem processo conhecido'));
-    const account = this.opts.accounts().find((a) => a.id === agent.account);
-    if (!account) throw new PtyError(400, tr('conta desconhecida'));
+    const account = this.account(agent.account);
     let registered: unknown;
     try {
       registered = this.readSession(account.dir, pid);
     } catch {
       throw new PtyError(409, tr('a sessão não está mais aberta'));
     }
-    const r = (registered ?? {}) as { sessionId?: unknown; startedAt?: unknown; procStart?: unknown };
+    const r = (registered ?? {}) as { sessionId?: unknown; startedAt?: unknown; procStart?: unknown; kind?: unknown; jobId?: unknown };
     if (r.sessionId !== agent.sessionId) throw new PtyError(409, tr('o processo não é mais desta sessão'));
     if (!this.isAlive(pid)) throw new PtyError(409, tr('a sessão não está mais aberta'));
     const reg: RegisteredProc = {
@@ -469,7 +510,8 @@ export class PtyManager {
     const proc = await this.procInfo(pid);
     if (!proc) throw new PtyError(409, tr('não consegui conferir o processo desta sessão (talvez já tenha encerrado)'));
     if (!sameProcess(reg, proc)) throw new PtyError(409, tr('o processo {0} não é mais esta sessão do Claude Code (registro antigo?)', [pid]));
-    return { pid, proc };
+    const job = r.kind === 'bg' && typeof r.jobId === 'string' && JOB_ID.test(r.jobId) ? r.jobId : undefined;
+    return job ? { pid, proc, job } : { pid, proc };
   }
 
   /** O processo `pid` ainda é o mesmo de `proc` (vivo, mesmo executável e mesmo início)? */

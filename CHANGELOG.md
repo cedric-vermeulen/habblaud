@@ -10,6 +10,12 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Corrigido
+
+- **Terminal: “Assumir daqui” num agente do Novo agente não cria mais um agente duplicado.** A sessão em segundo plano
+  (`claude --bg`) era encerrada e o serviço do Claude Code a reabria na hora, ao lado da cópia retomada aqui: dois
+  agentes na mesma conversa. Agora ela só é aberta no terminal (`claude attach`), e **Encerrar** usa `claude stop`.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido

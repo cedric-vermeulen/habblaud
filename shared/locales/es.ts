@@ -1837,6 +1837,7 @@ export const ES: Readonly<Record<string, string>> = {
   "a sessão no outro terminal não encerrou nem à força; ela continua aberta lá": "la sesión en la otra terminal no se cerró ni a la fuerza; sigue abierta allí",
   "a sessão foi encerrada no outro terminal, mas não abriu aqui ({0}); para continuar: claude --resume {1}": "la sesión se cerró en la otra terminal, pero no se abrió aquí ({0}); para continuar: claude --resume {1}",
   "Agente {0} assumido pelo escritório (sessão {1}).": "La oficina tomó el control del agente {0} (sesión {1}).",
+  "Agente {0} aberto pelo escritório (sessão em segundo plano {1}).": "La oficina abrió el agente {0} (sesión en segundo plano {1}).",
   "entrada inválida": "entrada inválida",
   "informe a pasta do projeto (caminho absoluto)": "indica la carpeta del proyecto (ruta absoluta)",
   "pasta não encontrada: {0}": "carpeta no encontrada: {0}",
