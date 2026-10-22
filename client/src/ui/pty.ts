@@ -10,7 +10,7 @@ import type { UiComponent, UiContext } from './context';
 import { h, iconButton, setHidden, setText } from './dom';
 import { ICONS } from './icons';
 import { maximizeButton, Movable } from './movable';
-import { closePty, createPty, stopAgent, takeoverAgent, type PtyStart } from './ptyapi';
+import { createPty, stopAgent, takeoverAgent, type PtyStart } from './ptyapi';
 import type { PtyPane } from './ptypane';
 import { TermActions } from './termactions';
 import { TermTabs } from './termtabs';
@@ -65,8 +65,9 @@ export class PtyPanel implements UiComponent, PtyControl {
     this.nameEl = h('strong', { class: 'ui-term__name' });
     this.roomEl = h('span', { class: 'ui-term__room' });
     this.stateEl = h('span', { class: 'ui-pty__state', role: 'status' });
+    // Pelo agente, não pelo pty: numa sessão em segundo plano, fechar o pty (`claude attach`) só desconecta.
     this.actions = new TermActions(ctx, this, false, async () => {
-      if (this.info) await closePty(this.info.id);
+      if (this.info) await this.stop(this.info.agentId);
     });
     this.tabs = new TermTabs(ctx);
     const close = iconButton(ICONS.close, tr('Fechar a janela (a sessão continua rodando)'), () => this.close(), 'ui-icon-btn--sm ui-term__close');
