@@ -128,6 +128,17 @@ describe('PtyManager: conferir o processo antes de encerrar', () => {
     expect(same.killPid).toHaveBeenCalledOnce();
   });
 
+  it('sessão em segundo plano: encerra com claude stop, aberta lá ou aqui', async () => {
+    const stopJob = vi.fn(async () => {});
+    const s = setup({ stopJob, session: { sessionId: SESSION, startedAt: STARTED, kind: 'bg', jobId: '0f8fad5b' } });
+    await s.manager.stop(`acc:${PID}`);
+    await s.manager.takeover(`acc:${PID}`);
+    await s.manager.stop(`acc:${PID}`);
+    expect(stopJob).toHaveBeenCalledTimes(2);
+    expect(stopJob).toHaveBeenCalledWith('0f8fad5b', expect.any(Object));
+    expect(s.killPid).not.toHaveBeenCalled();
+  });
+
   it('recusa quando não dá para saber nada do processo', async () => {
     const s = setup({ proc: undefined });
     await rejects(s.manager.stop(`acc:${PID}`), 409);
@@ -211,6 +222,16 @@ describe('PtyManager: assumir', () => {
     const err = await rejects(s.manager.takeover(`acc:${PID}`), 500);
     expect(err.message).toContain(`claude --resume ${SESSION}`);
     expect(err.message).toContain('posix_spawnp failed');
+  });
+
+  it('sessão em segundo plano: abre com claude attach, sem encerrar nada (o serviço a reabriria)', async () => {
+    const s = setup({ session: { sessionId: SESSION, startedAt: STARTED, kind: 'bg', jobId: '0f8fad5b' } });
+    const info = await s.manager.takeover(`acc:${PID}`);
+    expect(s.killPid).not.toHaveBeenCalled();
+    expect(s.spawned).toEqual([{ args: ['attach', '0f8fad5b'], cwd: tmpdir() }]);
+    expect(info).toMatchObject({ agentId: `acc:${PID}`, attached: '0f8fad5b' });
+    expect(info.resumed).toBeUndefined();
+    expect((await s.manager.takeover(`acc:${PID}`)).id).toBe(info.id);
   });
 
   it('registro antigo (PID reaproveitado): não encerra ninguém', async () => {

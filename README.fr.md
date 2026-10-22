@@ -500,6 +500,8 @@ liste latérale ou la touche `T` ouvrent la même fenêtre, avec des onglets pou
   et poursuit la **même conversation** ici (`claude --resume <sessão>`, dans le même dossier et avec le même compte).
   Le personnage garde son nom. Sous Windows, le terminal d'où la session est partie revient à la normale (Habblaud
   désactive les modes souris/clavier que Claude avait activés).
+- Session en arrière-plan (lancée par **Nouvel agent**, `claude --bg`) : **Prendre le contrôle ici** l'ouvre simplement ici
+  (`claude attach`), sans rien fermer ; fermer la fenêtre la laisse tourner et **Fermer** passe par `claude stop`.
 - **Fermer** met fin à la session, qu'elle soit ici ou dans un autre terminal (la conversation reste enregistrée).
 - **Nouvelle session** (dans le panneau de la salle) ouvre un nouveau Claude Code dans le dossier du projet.
 

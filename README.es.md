@@ -499,6 +499,8 @@ abren la misma ventana, con pestañas para los demás agentes del mismo proyecto
   y continúa la **misma conversación** aquí (`claude --resume <sessão>`, en la misma carpeta y cuenta). El personaje
   conserva su nombre. En Windows, la terminal de donde salió la sesión vuelve a la normalidad (Habblaud desactiva los
   modos de mouse/teclado que Claude había activado).
+- Sesión en segundo plano (abierta con **Nuevo agente**, `claude --bg`): **Tomar el control aquí** solo la abre aquí
+  (`claude attach`), sin cerrar nada; cerrar la ventana la deja en marcha y **Cerrar** usa `claude stop`.
 - **Cerrar** termina la sesión, esté aquí o en otra terminal (la conversación queda guardada).
 - **Nueva sesión** (en el panel de la sala) abre un Claude Code nuevo en la carpeta del proyecto.
 

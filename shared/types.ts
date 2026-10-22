@@ -723,11 +723,13 @@ export interface PtyStatus {
 /** Terminal interativo aberto pelo Habblaud (node-pty no servidor, xterm.js no navegador). */
 export interface PtyInfo {
   id: string;
-  /** PID do Claude Code: o agente correspondente é `${account}:${pid}` (= agentId). */
+  /** PID do Claude Code: o agente correspondente é `${account}:${pid}` (= agentId), exceto com `attached`. */
   pid: number;
   cwd: string;
   account: string;
   agentId: string;
+  /** Sessão em segundo plano aberta aqui (`claude attach`): o agentId é o do processo dela, que continua rodando. */
+  attached?: string;
   /** Sessão retomada (`claude --resume`), quando o terminal assumiu uma sessão que já existia. */
   resumed?: string;
   /** Agente que este terminal assumiu (o id antigo, do processo encerrado). */
