@@ -310,6 +310,30 @@ describe('PtyManager: sessão nova com pedido', () => {
     expect(s.spawned.map((p) => p.args)).toEqual([['--', '--help e depois /init'], []]);
   });
 
+  it('em segundo plano: `claude --bg` e abre aqui com `claude attach`, como o agente do registro', async () => {
+    const startJob = vi.fn(async () => ({ ok: true as const, id: 'job12345' }));
+    let polls = 0;
+    const s = setup({ startJob, findJobPid: (_dir, job) => (job === 'job12345' && ++polls >= 3 ? 7777 : undefined) });
+    const info = await s.manager.createBackground({ cwd: tmpdir(), prompt: 'oi' });
+    expect(startJob).toHaveBeenCalledWith({ folder: tmpdir(), prompt: 'oi' });
+    expect(s.spawned.map((p) => p.args)).toEqual([['attach', 'job12345']]);
+    expect(info).toMatchObject({ attached: 'job12345', agentId: 'acc:7777' });
+  });
+
+  it('em segundo plano: se o `--bg` falha, abre direto com o pedido', async () => {
+    const s = setup({ startJob: async () => ({ ok: false as const, error: 'Workspace not trusted' }) });
+    await s.manager.createBackground({ cwd: tmpdir(), prompt: 'oi' });
+    expect(s.spawned.map((p) => p.args)).toEqual([['--', 'oi']]);
+  });
+
+  it('em segundo plano: conta que não é a padrão abre direto (o `--bg` usa a conta do servidor)', async () => {
+    const startJob = vi.fn();
+    const s = setup({ startJob, accounts: () => [{ id: 'acc', dir: join(tmpdir(), 'conta'), isDefault: false }] });
+    await s.manager.createBackground({ cwd: tmpdir(), prompt: 'oi' });
+    expect(startJob).not.toHaveBeenCalled();
+    expect(s.spawned.map((p) => p.args)).toEqual([['--', 'oi']]);
+  });
+
   it('recusa pedido grande demais ou que não é texto', () => {
     const s = setup();
     expect(() => s.manager.create({ cwd: tmpdir(), prompt: 'x'.repeat(PROMPT_MAX + 1) })).toThrow(PtyError);

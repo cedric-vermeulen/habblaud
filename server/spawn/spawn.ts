@@ -102,12 +102,15 @@ export function cliArgs(req: SpawnRequest): string[] {
 }
 
 /** `claude --bg` na pasta do pedido; devolve o id curto que ele imprime ("backgrounded · 7eacc670 · nome"). */
-export function createCliRunner(bin: string, timeoutMs = CLI_TIMEOUT_MS): CliRunner {
+export function createCliRunner(bin: string, timeoutMs = CLI_TIMEOUT_MS, onLaunched?: (job: { id: string; folder: string }) => void): CliRunner {
   return (req) =>
     new Promise((ok) => {
       const child = execFile(bin, cliArgs(req), { cwd: req.folder, timeout: timeoutMs, windowsHide: true, encoding: 'utf8' }, (err, out, stderr) => {
         const id = /backgrounded\s*·\s*([\w-]+)/.exec(out ?? '')?.[1];
-        if (!err && id) return ok({ ok: true, id });
+        if (!err && id) {
+          onLaunched?.({ id, folder: req.folder });
+          return ok({ ok: true, id });
+        }
         const line = [stderr, out, err?.message].map((t) => (t ?? '').split('\n').map((l) => l.trim()).find(Boolean)).find(Boolean);
         ok({ ok: false, error: (line ?? tr('o claude não começou a sessão')).slice(0, ERROR_MAX) });
       });

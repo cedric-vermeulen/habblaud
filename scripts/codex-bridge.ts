@@ -24,6 +24,7 @@ import { createCodexQueueRunner, findCodexBin, THREAD_ID, type CodexQueueResult,
 import { tr } from '../shared/i18n';
 import { createCliRunner, createOpener, folderProblem, launch, parseSpawn, type CliRunner, type Opener, type SpawnHow } from '../server/spawn/spawn';
 import { runnableClaudeBin } from '../server/claude-bin';
+import { recordLaunched } from '../server/spawn/launched';
 import { ATTACHMENT_MAX_BYTES, ATTACHMENTS_PER_SPAWN, attachmentsRoot, promptWithAttachments, safeFileName, writeAttachments, type Attachment } from '../server/spawn/attachments';
 import { createWhisperTranscriber, findWhisper, type Transcriber } from '../server/dictation/whisper';
 import { checkFile, insideKnownFolder, tempRoots } from '../server/deliveries/files';
@@ -341,7 +342,7 @@ async function main(): Promise<void> {
   const run = bin ? createCodexQueueRunner(bin) : undefined;
   const open = createOpener();
   const claudeBin = runnableClaudeBin(process.env);
-  const cli = claudeBin ? createCliRunner(claudeBin) : undefined;
+  const cli = claudeBin ? createCliRunner(claudeBin, undefined, (job) => recordLaunched(job)) : undefined;
   const post = httpPost(parsed.port);
   const log = (line: string) => console.log(`[codex-bridge] ${line}`);
   log(

@@ -42,6 +42,7 @@ import { createBuildReader, readBuildInfo } from './build';
 import { UpdateChecker } from './updates/checker';
 import { getLocale, tr } from '../shared/i18n';
 import type { WorldLocale } from '../shared/world/protocol';
+import { recordLaunched } from './spawn/launched';
 import { createCliRunner, createOpener, SpawnService } from './spawn/spawn';
 import { runnableClaudeBin } from './claude-bin';
 import { AttachmentStore, attachmentsRoot, writeAttachments, type Attachment } from './spawn/attachments';
@@ -261,8 +262,10 @@ const spawnOn = config.messages && ptyOptIn;
 const attachments = config.messages ? new AttachmentStore() : undefined;
 const attachmentFiles = attachments && !config.inDocker ? { store: attachments, write: (files: readonly Attachment[]) => writeAttachments(attachmentsRoot(), randomUUID(), files) } : undefined;
 const spawnBin = config.inDocker ? undefined : runnableClaudeBin(process.env);
+// `claude --bg` do Novo agente e do terminal interativo; anota cada agente aberto (npm run agents:stop).
+const bgRunner = spawnBin ? createCliRunner(spawnBin, undefined, (job) => recordLaunched(job)) : undefined;
 const spawn = spawnOn
-  ? new SpawnService(config.inDocker ? { attachments } : { opener: createOpener(), cli: spawnBin ? createCliRunner(spawnBin) : undefined, attachments })
+  ? new SpawnService(config.inDocker ? { attachments } : { opener: createOpener(), cli: bgRunner, attachments })
   : undefined;
 // Ditado: no Docker quem transcreve é o auxiliar do host; no Node, o servidor, se achar o Whisper local.
 const whisper = config.messages && !config.inDocker ? findWhisper() : undefined;
@@ -315,6 +318,7 @@ const ptys = spawnPty
       },
       onChange: () => office.markDirty(),
       createScreen: ptyScreen,
+      startJob: bgRunner,
     })
   : undefined;
 late.ptys = ptys;

@@ -479,6 +479,9 @@ open the same window, with tabs for the other agents in the same project.
   terminal the session came from goes back to normal (Habblaud turns off the mouse/keyboard modes that Claude turned on).
 - Background session (started by **New agent**, `claude --bg`): **Take over here** just opens it here (`claude attach`),
   without ending anything; closing the window leaves it running and **End** uses `claude stop`.
+- **New agent** with **Open in the interactive terminal** starts it the same way (in the background, opened here with
+  `claude attach`): restarting Habblaud does not end it. `npm run agents:stop` ends every background agent Habblaud
+  started (listed in `~/.habblaud/launched.json`), keeping their conversations; sessions you started yourself are untouched.
 - **End** closes the session, whether it's here or in another terminal (the conversation is saved).
 - **New session** (in the room's drawer) opens a new Claude Code in the project folder.
 

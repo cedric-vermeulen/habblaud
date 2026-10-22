@@ -1,6 +1,7 @@
 // Rotas do terminal interativo (PtyManager, server/pty/manager.ts):
 //   GET  /api/pty                      estado do recurso e terminais abertos
-//   POST /api/pty                      {cwd, account?, cols?, rows?, prompt?, attachments?}: sessão nova do Claude Code
+//   POST /api/pty                      {cwd, account?, cols?, rows?, prompt?, attachments?, background?}: sessão nova do
+//                                      Claude Code (background: `claude --bg` aberto aqui com `claude attach`)
 //   GET  /api/pty/:id/stream           SSE: reset (tela guardada) | data | exit
 //   POST /api/pty/:id/input|resize|close
 //   POST /api/agents/:id/stop          encerra o agente (aqui ou noutro terminal)
@@ -93,7 +94,8 @@ export function createPtyRoutes(ptys: PtyManager, files?: AttachmentFiles): (req
         if ('error' in paths) throw new HttpError(400, paths.error);
         prompt = promptWithAttachments(typeof prompt === 'string' ? prompt : '', paths);
       }
-      return sendJson(res, 201, ptys.create({ cwd: body?.cwd, account: body?.account, cols: body?.cols, rows: body?.rows, prompt }));
+      const p = { cwd: body?.cwd, account: body?.account, cols: body?.cols, rows: body?.rows, prompt };
+      return sendJson(res, 201, body?.background === true ? await ptys.createBackground(p) : ptys.create(p));
     }
     const id = decode(rawId);
     if (act === 'stream') {
