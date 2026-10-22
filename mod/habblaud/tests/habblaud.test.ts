@@ -3,7 +3,7 @@
 // (mock.clock), $.session.usage, $.session.id, $.session.surfaces, $.fs.write, $.http.fetch e $.ui.status.
 import type { CommandRunInput, HttpResponse, On, SessionRateLimit } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { accountIdOf, configDirOf, normalizePath, parseSummary, statusText, usageDirOf, windowOf, type Summary, type WaitingAgent } from '../hooks/register'
+import { accountIdOf, configDirOf, localeOf, normalizePath, parseSummary, statusText, usageDirOf, windowOf, type Summary, type WaitingAgent } from '../hooks/register'
 
 const NOW = Date.parse('2026-10-06T12:00:00Z')
 const SEC = (iso: string) => Date.parse(iso) / 1_000
@@ -250,6 +250,26 @@ describe('/habblaud', () => {
     const out = await $.command.run(RUN)
     expect(out.text).toMatch(/^O Habblaud em http:\/\/localhost:4747 está numa versão sem a rota do mod/)
   })
+
+  test('no idioma do Habblaud, que continua valendo quando ele cai', async ($, on) => {
+    let up = true
+    world(on, { answer: () => (up ? summary([waiting('Valentina', 'loja-virtual', { answerable: true })], { locale: 'fr' }) : 'offline') })
+    const out = await $.command.run(RUN)
+    expect(out.text).toBe(
+      [
+        'Habblaud 0.3.0 sur http://localhost:4850',
+        '7 agents · 3 au travail · 1 a besoin de vous',
+        '✋ Valentina (loja-virtual): aprovar uma permissão · réponse possible depuis le bureau',
+      ].join('\n'),
+    )
+    up = false
+    expect((await $.command.run(RUN)).text).toMatch(/^Habblaud n’a pas répondu sur http:\/\/localhost:4850\./)
+  })
+
+  test('sem resposta: o idioma do ambiente (o inglês do sistema não conta)', async ($, on) => {
+    world(on, { env: { HOME: '/home/fulano', LANG: 'es_ES.UTF-8' }, answer: () => 'offline' })
+    expect((await $.command.run(RUN)).text).toMatch(/^Habblaud no respondió en/)
+  })
 })
 
 describe('funções puras', () => {
@@ -291,5 +311,14 @@ describe('funções puras', () => {
     const s = parseSummary(JSON.stringify({ version: '0.3.0', agents: 2, working: 1, waiting: [{ name: 'Ana\nB', room: 'r', answerable: 'sim' }, { room: 'sem nome' }] }))
     expect(s?.waiting).toEqual([{ id: 'Ana B', name: 'Ana B', room: 'r', account: '', waitingFor: 'responder no terminal', answerable: false }])
     expect(statusText([])).toBeUndefined()
+    expect(parseSummary(JSON.stringify({ version: '1', locale: 'fr', waiting: [] }))?.locale).toBe('fr')
+    expect(parseSummary(JSON.stringify({ version: '1', locale: 'xx', waiting: [] }))?.locale).toBeUndefined()
+  })
+
+  test('idioma: normaliza como o servidor; a linha em francês', () => {
+    expect(['fr_BE.UTF-8', 'pt', 'en-US', 'es', 'de_DE', undefined].map(localeOf)).toEqual(['fr', 'pt-BR', 'en', 'es', undefined, undefined])
+    expect(statusText([waiting('Piero', 'starwright')], 'fr')).toBe('🏢 Piero a besoin de vous dans starwright')
+    const many = ['A', 'B', 'C', 'D'].map((n) => waiting(n, 'r'))
+    expect(statusText(many, 'fr')).toBe('🏢 4 ont besoin de vous : A (r), B (r), C (r) et 1 de plus')
   })
 })

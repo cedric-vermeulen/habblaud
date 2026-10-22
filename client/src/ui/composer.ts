@@ -4,7 +4,8 @@
 // terminal (só a sessão ao vivo). Enter manda, Shift+Enter quebra a linha; a linha de situação acompanha a entrega
 // (GET /api/messages/:id) até ela se resolver. As teclas digitadas aqui não disparam os atalhos globais. O rascunho de
 // cada agente fica guardado (só na memória) ao trocar de agente. O microfone (ui/dictation.ts, Whisper local no Mac)
-// põe o texto ditado no cursor; aparece quando o ditado funciona daqui. A lógica pura está em ui/composer-model.ts.
+// põe o texto ditado no cursor; aparece quando o ditado funciona daqui. Arquivos colados (Ctrl+V) ou soltos na caixa
+// vão junto (fora do Docker: o servidor os grava e a mensagem leva os caminhos). A lógica pura está em ui/composer-model.ts.
 import { MESSAGE_MAX } from '../../../shared/messages';
 import type { AgentInfo, OutboxMessage, Provider } from '../../../shared/types';
 import {
@@ -23,6 +24,7 @@ import {
   type ComposerMode,
   type SendState,
 } from './composer-model';
+import { acceptFiles, FileTray } from './attachments';
 import type { UiContext } from './context';
 import { DictationButton, dictationAvailable, insertDictation } from './dictation';
 import { h, setAttr, setHidden, setText, setTitle } from './dom';
@@ -61,6 +63,9 @@ export class MessageComposer {
   private dictate: DictationButton;
   /** Linha do ditado (gravando, transcrevendo, idioma, erro). */
   private dictStatus: HTMLElement;
+  /** Anexos esperando o envio, por agente (como o rascunho). */
+  private trays = new Map<string, FileTray>();
+  private trayHost: HTMLElement;
   private dictTimer: ReturnType<typeof setTimeout> | null = null;
   /** Rascunho que recebe o ditado em andamento (o agente pode mudar enquanto o Mac transcreve). */
   private dictKey = '';
@@ -112,10 +117,12 @@ export class MessageComposer {
         this.box.focus();
       }
     });
+    acceptFiles(this.row, (files) => this.addFiles(files));
+    this.trayHost = h('div', { class: 'ui-msg__files' });
     this.hint = h('p', { class: 'ui-msg__hint', hidden: true });
     this.status = h('p', { class: 'ui-msg__status', role: 'status', hidden: true, attrs: { 'aria-live': 'polite' } });
     this.tip = term ? null : h('p', { class: 'ui-msg__tip', text: composerTip() });
-    this.el = h('div', { class: `ui-msg ui-msg--${variant}` }, this.hint, this.row, this.dictStatus, this.status, this.tip);
+    this.el = h('div', { class: `ui-msg ui-msg--${variant}` }, this.hint, this.trayHost, this.row, this.dictStatus, this.status, this.tip);
   }
 
   /**
@@ -144,6 +151,7 @@ export class MessageComposer {
       this.box.value = ready ? (this.drafts.get(key) ?? '') : '';
       this.box.style.height = '';
       if (ready) requestAnimationFrame(() => this.resize());
+      this.trayHost.replaceChildren(...(ready && this.trays.has(key) ? [this.tray(key).el] : []));
     }
     this.box.disabled = !ready;
     const name = agent?.name ?? tr('o agente');
@@ -228,7 +236,30 @@ export class MessageComposer {
   }
 
   private syncButton(): void {
-    this.sendBtn.disabled = this.mode.kind !== 'ready' || !canSend(this.box.value) || this.states.get(this.agentId)?.phase === 'sending';
+    this.sendBtn.disabled = this.mode.kind !== 'ready' || !this.hasContent() || this.states.get(this.agentId)?.phase === 'sending';
+  }
+
+  /** Texto para mandar ou anexo esperando. */
+  private hasContent(): boolean {
+    return canSend(this.box.value) || (this.trays.get(this.agentId)?.count ?? 0) > 0;
+  }
+
+  private tray(key: string): FileTray {
+    let tray = this.trays.get(key);
+    if (!tray) {
+      tray = new FileTray((text) => this.sayDictation(text, true));
+      this.trays.set(key, tray);
+    }
+    return tray;
+  }
+
+  private addFiles(files: File[]): void {
+    if (this.mode.kind !== 'ready') return;
+    if (!access().messageFiles) return this.sayDictation(tr('Anexos nas mensagens só funcionam com o Habblaud fora do Docker (npm start)'), true);
+    const tray = this.tray(this.agentId);
+    tray.add(files);
+    if (tray.el.parentElement !== this.trayHost) this.trayHost.replaceChildren(tray.el);
+    this.syncButton();
   }
 
   /** Cresce com o texto até o limite do CSS (~6 linhas; depois rola). Escondida, mede quando aparecer. */
@@ -248,20 +279,23 @@ export class MessageComposer {
   private async send(): Promise<void> {
     const agentId = this.agentId;
     const raw = this.box.value;
-    if (this.mode.kind !== 'ready' || !canSend(raw) || this.states.get(agentId)?.phase === 'sending') return;
+    if (this.mode.kind !== 'ready' || !this.hasContent() || this.states.get(agentId)?.phase === 'sending') return;
+    const tray = this.trays.get(agentId);
     this.providers.set(agentId, this.provider);
     this.setState(agentId, { phase: 'sending', at: Date.now() });
     let r: { message: OutboxMessage } | { error: string };
     try {
-      r = await this.ctx.store.sendMessage(agentId, messageText(raw));
-    } catch {
-      r = { error: OFFLINE_ERROR };
+      const ids = tray?.count ? await tray.upload('/api/messages/attachments', () => {}) : [];
+      r = await this.ctx.store.sendMessage(agentId, messageText(raw), ids);
+    } catch (err) {
+      r = { error: tray?.count && err instanceof Error ? err.message : OFFLINE_ERROR };
     }
     if ('error' in r) {
       // Recusada: o texto continua na caixa para tentar de novo.
       this.setState(agentId, { phase: 'rejected', error: r.error, at: Date.now() });
       return;
     }
+    tray?.clear();
     // Na fila: a caixa esvazia (a não ser que você tenha continuado a escrever enquanto o envio ia).
     if ((this.drafts.get(agentId) ?? '') === raw) {
       this.drafts.delete(agentId);

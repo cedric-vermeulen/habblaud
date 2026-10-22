@@ -204,35 +204,35 @@ describe('rodadas', () => {
     expect(w.texts()).toEqual(['oi'])
   })
 
-  test('Habblaud fora do ar, 403 (mensagens desligadas) ou 404 (versão sem a rota): recua para 30 s até voltar', async ($, on) => {
+  test('Habblaud fora do ar, 403 (mensagens desligadas) ou 404 (versão sem a rota): recua para 5 s até voltar', async ($, on) => {
     let answer: Answer = 'offline'
     const w = world(on, { inbox: () => answer })
     await $.session.start(START)
     await w.clock.advance(2_000)
     expect(w.inboxes().length).toBe(1)
-    await w.clock.advance(28_000)
+    await w.clock.advance(3_000)
     expect(w.inboxes().length).toBe(1)
     answer = { status: 403, text: '{"error":"mensagens pelo escritório desligadas"}' }
     await w.clock.advance(2_000)
     expect(w.inboxes().length).toBe(2)
     answer = { status: 404, text: '{"error":"rota desconhecida"}' }
-    await w.clock.advance(30_000)
+    await w.clock.advance(5_000)
     expect(w.inboxes().length).toBe(3)
     answer = []
-    await w.clock.advance(30_000)
+    await w.clock.advance(5_000)
     expect(w.inboxes().length).toBe(4)
     await w.clock.advance(2_000)
     expect(w.inboxes().length).toBe(5)
     expect(w.acks()).toEqual([])
   })
 
-  test('Habblaud travado: desiste em 2 s e recua para 30 s', async ($, on) => {
+  test('Habblaud travado: desiste em 2 s e recua para 5 s', async ($, on) => {
     let hang = true
     const w = world(on, { inbox: () => (hang ? 'hang' : []) })
     await $.session.start(START)
     await w.clock.advance(2_000)
     expect(w.inboxes().length).toBe(1)
-    await w.clock.advance(31_000)
+    await w.clock.advance(6_000)
     expect(w.inboxes().length).toBe(1)
     hang = false
     await w.clock.advance(1_000)

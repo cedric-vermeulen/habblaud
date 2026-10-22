@@ -14,7 +14,7 @@ import { handleSessionsRoute } from './sessions';
 import type { Hub } from './sse';
 import { handleStatsRoute } from './stats';
 import type { TerminalStreams } from './terminal';
-import { tr } from '../../shared/i18n';
+import { getLocale, tr } from '../../shared/i18n';
 import type { SpawnService } from '../spawn/spawn';
 import { ATTACHMENT_BODY_MAX, parseAttachment, type AttachmentStore } from '../spawn/attachments';
 import type { SpawnFolder } from '../spawn/folders';
@@ -256,7 +256,7 @@ export function modSummary(
       since: a.statusSince,
       answerable: !!a.permission,
     }));
-  return { version, agents: present.length, working: present.filter((a) => a.status === 'working').length, waiting };
+  return { version, locale: getLocale(), agents: present.length, working: present.filter((a) => a.status === 'working').length, waiting };
 }
 
 /** Devolve um handler que trata /api/* e responde false para o resto. */
@@ -396,6 +396,7 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
           local: !remote && isLoopbackHost(req.headers.host),
           permissions: !!deps.permissions && trusted(req, 'permissions'),
           messages: !!deps.messages && trusted(req, 'messages'),
+          messageFiles: !!deps.messages && trusted(req, 'messages') && !deps.inDocker,
           terminal: !!terminals && trusted(req, 'terminal'),
           spawn: !!deps.spawn && trusted(req, 'spawn'),
           world: !!deps.world && !!deps.terminal && !remote && isLoopbackHost(req.headers.host),

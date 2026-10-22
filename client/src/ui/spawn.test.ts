@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ago, formatBytes, shortPath, spawnFolders } from './spawn';
+import { formatBytes } from './attachments';
+import { ago, shortPath, spawnFolders } from './spawn';
 import { insertDictation, pickMimeType } from './dictation';
 
 describe('spawnFolders', () => {

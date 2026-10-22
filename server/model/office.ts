@@ -67,6 +67,8 @@ export interface OfficeDeps {
   accountName: (id: string) => string | undefined;
   /** Terminal ligado (ver OfficeSnapshot.meta.terminal e ServerConfig.terminal). */
   terminal?: boolean;
+  /** Gravação do timelapse ligada (ver OfficeSnapshot.meta.timeline e ServerConfig.timeline). */
+  timeline?: boolean;
   /** Pedidos de permissão pendentes por agente (PermissionRegistry.snapshot), postos no snapshot. */
   permissions?: () => ReadonlyMap<string, PermissionRequestInfo>;
   /**
@@ -1001,6 +1003,7 @@ export class Office {
         build: this.deps.build?.(),
         terminal: this.deps.terminal === true,
         messages: this.deps.messages !== undefined,
+        ...(this.deps.timeline === false ? { timeline: false } : {}),
         ...(ptys ? { pty: ptys.status } : {}),
         updates: this.deps.updates?.(),
         ...(this.deps.world ? { world: this.deps.world() } : {}),

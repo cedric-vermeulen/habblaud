@@ -432,7 +432,7 @@ export function createUI(root: HTMLElement, store: OfficeStore, world: WorldApi,
         break;
       case 'l':
       case 'L':
-        if (store.mock) break;
+        if (store.mock || store.snapshot?.meta.timeline === false) break;
         e.preventDefault();
         ctx.toggleTimelapse();
         break;

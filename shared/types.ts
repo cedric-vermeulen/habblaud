@@ -6,6 +6,7 @@
 
 import type { AppearanceParts } from './appearance';
 import type { WorldMeta } from './world/api';
+import type { Locale } from './i18n';
 
 export type AgentKind = 'main' | 'sub';
 
@@ -358,6 +359,8 @@ export interface OfficeSnapshot {
      * desligar. Quem recebe agora diz AgentInfo.canMessage. Ausente/false = recurso desligado.
      */
     messages?: boolean;
+    /** Gravação do timelapse (HABBLAUD_TIMELINE). false = desligada: a página esconde o Timelapse. */
+    timeline?: boolean;
     /**
      * Terminal interativo (abrir/assumir sessões e encerrar agentes pelo escritório): só fora do Docker, com
      * node-pty e acesso local. Ausente = recurso desligado.
@@ -388,6 +391,8 @@ export interface AccessInfo {
   local: boolean;
   permissions: boolean;
   messages: boolean;
+  /** Mensagens com anexos (POST /api/messages/attachments): só fora do Docker. Ausente em servidores antigos. */
+  messageFiles?: boolean;
   terminal: boolean;
   /** Pode abrir agentes novos no app do Claude (POST /api/spawn). */
   spawn: boolean;
@@ -448,6 +453,8 @@ export interface AgentDetail {
 export interface ModSummary {
   /** Versão do Habblaud em uso. */
   version: string;
+  /** Idioma do servidor: o mod escreve a linha e o /habblaud nele (os motivos de espera já vêm nele). */
+  locale: Locale;
   /** Agentes presentes e quantos estão trabalhando. */
   agents: number;
   working: number;

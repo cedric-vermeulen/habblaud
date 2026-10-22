@@ -27,7 +27,9 @@ instalação está no README principal.
   subagentes dela, e mostra `🏢 Valentina precisa de você em loja-virtual` ou
   `🏢 2 precisam de você: Valentina (loja-virtual), Elias (app-mobile)` (até 3 nomes, depois "e mais N").
   Ninguém esperando ou Habblaud fora do ar: a linha some; fora do ar, as perguntas passam a ser a cada 30 s até
-  ele voltar. Só em sessões que desenham (no `claude -p` não pergunta nada).
+  ele voltar. Só em sessões que desenham (no `claude -p` não pergunta nada). Os textos do mod seguem o idioma
+  do servidor (campo `locale` do resumo); antes da primeira resposta, o do ambiente (`HABBLAUD_LANG`, `LC_ALL`,
+  `LC_MESSAGES`, `LANG`, sem contar o inglês do sistema), senão o português.
 - **`/habblaud`:** resumo do escritório inteiro, respondido pelo próprio mod (não chama o modelo, não gasta uso):
 
   ```
@@ -85,7 +87,7 @@ esquema do `hooks.json`).
   `POST http://127.0.0.1:<HABBLAUD_PORT ou 4747>/api/mod/inbox` com `{session, account}`. A pergunta também marca a
   sessão como presente: é ela que mostra, na página, a caixa de mensagem do agente (sem o plugin, a página dá a dica
   de instalar). Fora do ar, ou respondendo outra coisa (403 com as mensagens desligadas, 404 numa versão sem a
-  rota), passa a perguntar a cada 30 s até ele voltar.
+  rota), passa a perguntar a cada 5 s até ele voltar.
 - **Entrega:** cada mensagem, na ordem, vai por `$.prompt.submit({ text, asUser: true })`. O modelo lê o texto como
   seu, sem o "The habblaud-mensagens plugin sent a message" (o registro da sessão ainda diz que veio do plugin), e o
   texto vai exatamente como foi digitado. Com a sessão no meio de um turno, o Claude Code guarda o prompt e o roda

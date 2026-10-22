@@ -2,6 +2,7 @@
 // mantém o modelo do escritório e transmite via SSE. Sem dependências de runtime.
 //   npm run dev    -> tsx server/index.ts --dev (Vite em middleware mode, HMR no mesmo servidor)
 //   npm start      -> node dist/server/index.js (serve dist/client)
+import { randomUUID } from 'node:crypto';
 import http from 'node:http';
 import { join } from 'node:path';
 import { codexDirsRefused, isDefaultDir } from './accounts/detect';
@@ -43,7 +44,7 @@ import { getLocale, tr } from '../shared/i18n';
 import type { WorldLocale } from '../shared/world/protocol';
 import { createCliRunner, createOpener, SpawnService } from './spawn/spawn';
 import { runnableClaudeBin } from './claude-bin';
-import { AttachmentStore } from './spawn/attachments';
+import { AttachmentStore, attachmentsRoot, writeAttachments } from './spawn/attachments';
 import { recentFolders } from './spawn/folders';
 import { isDemoId } from '../shared/timeline';
 import { DictationService } from './dictation/dictation';
@@ -124,6 +125,7 @@ const office = new Office({
   sources: () => late.agents?.sources() ?? [],
   accountName: (id) => accounts.find(id)?.detected.name,
   terminal: config.terminal,
+  timeline: config.timeline,
   permissions: () => late.permissions?.snapshot() ?? new Map(),
   messages: config.messages ? () => late.messages?.reachable() ?? new Set() : undefined,
   ptys: () => (late.ptys ? { status: late.ptys.status(), list: late.ptys.list() } : { status: { enabled: false, reason: late.ptyOff ?? tr('desligado') }, list: [] }),
@@ -255,7 +257,8 @@ const ptyOptIn = isTruthy(ptyFlag);
 // Novo agente pelo escritório (sessão do Claude Code em segundo plano, ou a tela do app do Claude preenchida): a
 // liberação acima mais a trava das mensagens. No Docker, quem roda é o auxiliar do host (npm run codex:bridge).
 const spawnOn = config.messages && ptyOptIn;
-const attachments = spawnOn ? new AttachmentStore() : undefined;
+// Anexos do Novo agente e das mensagens (estas só fora do Docker: o servidor grava os arquivos no computador).
+const attachments = config.messages ? new AttachmentStore() : undefined;
 const spawnBin = config.inDocker ? undefined : runnableClaudeBin(process.env);
 const spawn = spawnOn
   ? new SpawnService(config.inDocker ? { attachments } : { opener: createOpener(), cli: spawnBin ? createCliRunner(spawnBin) : undefined, attachments })
@@ -357,7 +360,9 @@ const api = createApiHandler({
   sessions: history,
   timeline: createTimelineHandler({ dir: timelineDir, recording: !!timeline }),
   permissions: permissions ? createPermissionRoutes(permissions) : undefined,
-  messages: messages ? createMessageRoutes(messages) : undefined,
+  messages: messages
+    ? createMessageRoutes(messages, attachments && !config.inDocker ? { store: attachments, write: (files) => writeAttachments(attachmentsRoot(), randomUUID(), files) } : undefined)
+    : undefined,
   pty: ptys ? createPtyRoutes(ptys) : undefined,
   spawn,
   attachments,

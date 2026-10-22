@@ -1,10 +1,9 @@
 // Barra lateral: busca, filtro por conta e a lista de salas -> agentes -> subagentes.
 import type { AccountInfo, AgentInfo } from '../../../shared/types';
-import { roomTheme } from '../art';
 import type { UiComponent, UiContext } from './context';
 import { moveAgent, orderAgents } from './agentorder';
 import { moveRoom, orderRooms } from './roomorder';
-import { h, iconButton, KeyedList, setAttr, setHidden, setStyleVar, setText, setTitle } from './dom';
+import { h, iconButton, KeyedList, setAttr, setHidden, setText, setTitle } from './dom';
 import { plural, shortPath } from './format';
 import { ICONS } from './icons';
 import { groupRooms, type AgentNode, type RoomGroup } from './model';
@@ -12,6 +11,7 @@ import { officeIsEmpty } from './overlays';
 import { createAgentRow, updateAgentRow } from './rows';
 import { createAccountChip, createProgress, updateAccountChip, updateProgress } from './widgets';
 import { tr } from '../../../shared/i18n';
+import { roomActivity } from '../world/sim/behavior';
 
 interface RoomRefs {
   head: HTMLButtonElement;
@@ -221,11 +221,6 @@ export class Sidebar implements UiComponent {
       const r = head.getBoundingClientRect();
       this.ctx.renameRoom(g.room.id, { x: r.left + 12, y: r.bottom + 4 });
     });
-    try {
-      setStyleVar(head, '--room', roomTheme(g.room.seed).accent);
-    } catch {
-      // Sem tema: mantém a cor padrão do CSS.
-    }
     const agentsEl = h('ul', { class: 'ui-nodes' });
     const section = h('section', { class: 'ui-room', role: 'listitem' }, head, agentsEl);
     const accs = new KeyedList<AccountInfo | string>(accsEl, {
@@ -258,6 +253,8 @@ export class Sidebar implements UiComponent {
     r.head.classList.toggle('is-selected', selected);
     setAttr(r.head, 'aria-current', selected ? 'true' : null);
     section.classList.toggle('is-empty', present === 0);
+    // A faixa à esquerda mostra o estado da sala, como a placa no escritório.
+    setAttr(r.head, 'data-activity', roomActivity(g.agents.map((a) => a.status)));
 
     const t = g.tasks;
     setHidden(r.tasks, t.total === 0);

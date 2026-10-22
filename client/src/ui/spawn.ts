@@ -6,14 +6,13 @@
 import { tr } from '../../../shared/i18n';
 import { isDemoId } from '../../../shared/timeline';
 import type { OfficeSnapshot } from '../../../shared/types';
+import { acceptFiles, api, FileTray } from './attachments';
 import type { UiContext } from './context';
 import { DictationButton, dictationAvailable, insertDictation } from './dictation';
 import { h, iconButton, setHidden, setText } from './dom';
 import { ICONS } from './icons';
 
 export const SPAWN_PROMPT_MAX = 8_000;
-export const MAX_FILES = 8;
-export const MAX_FILE_BYTES = 15 * 1024 * 1024;
 const POLL_MS = 700;
 /**
  * Quanto a página espera o pedido abrir: mais que o servidor leva para desistir (fila 30 s + `claude --bg` e `open`,
@@ -65,33 +64,6 @@ export function ago(at: number, now = Date.now()): string {
   return `${Math.round(hours / 24)} d`;
 }
 
-export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
-}
-
-function fileToBase64(file: Blob): Promise<string> {
-  return new Promise((ok, fail) => {
-    const r = new FileReader();
-    r.onload = () => ok(String(r.result).replace(/^data:[^,]*,/, ''));
-    r.onerror = () => fail(new Error(tr('não deu para ler o arquivo')));
-    r.readAsDataURL(file);
-  });
-}
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...init });
-  } catch {
-    throw new Error(tr('o Habblaud não respondeu'));
-  }
-  const body = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(body.error ?? tr('erro {0}', [res.status]));
-  return body;
-}
-
 function readPref(): string {
   try {
     return localStorage.getItem(LAST_FOLDER_KEY) ?? '';
@@ -108,12 +80,6 @@ function writePref(path: string): void {
   }
 }
 
-interface PendingFile {
-  file: File;
-  url?: string;
-  el: HTMLElement;
-}
-
 export class SpawnPanel {
   readonly el: HTMLElement;
   private readonly folderList: HTMLElement;
@@ -121,7 +87,7 @@ export class SpawnPanel {
   private readonly folder: HTMLInputElement;
   private readonly prompt: HTMLTextAreaElement;
   private readonly fileInput: HTMLInputElement;
-  private readonly fileList: HTMLElement;
+  private readonly files: FileTray;
   private readonly dictate: DictationButton;
   private readonly submitBtn: HTMLButtonElement;
   private readonly status: HTMLElement;
@@ -130,7 +96,6 @@ export class SpawnPanel {
   private folders: FolderOption[] = [];
   private selected = '';
   private typing = false;
-  private files: PendingFile[] = [];
 
   constructor(private readonly ctx: UiContext) {
     this.folderList = h('div', { class: 'ui-spawn__folders', role: 'radiogroup', attrs: { 'aria-label': tr('Projetos recentes') } });
@@ -146,8 +111,10 @@ export class SpawnPanel {
       attrs: { id: 'ui-spawn-prompt', rows: 5, maxlength: SPAWN_PROMPT_MAX, placeholder: tr('O que o agente deve fazer (opcional)') },
     });
     this.fileInput = h('input', { type: 'file', hidden: true, attrs: { multiple: true, 'aria-hidden': 'true', tabindex: '-1' } });
+    this.files = new FileTray((text) => this.say(text, true));
+    acceptFiles(this.prompt, (files) => this.files.add(files));
     this.fileInput.addEventListener('change', () => {
-      this.addFiles([...(this.fileInput.files ?? [])]);
+      this.files.add([...(this.fileInput.files ?? [])]);
       this.fileInput.value = '';
     });
     const attachBtn = h('button', { class: 'ui-btn ui-spawn__attach', type: 'button', attrs: { title: tr('Anexar imagens ou arquivos ao pedido') }, on: { click: () => this.fileInput.click() } });
@@ -163,7 +130,6 @@ export class SpawnPanel {
       (text, error) => this.say(text, error),
     );
     setHidden(this.dictate.el, true);
-    this.fileList = h('ul', { class: 'ui-spawn__files', attrs: { 'aria-label': tr('Anexos') } });
     this.submitBtn = h('button', { class: 'ui-btn ui-perm__btn ui-perm__btn--allow ui-spawn__go', type: 'button', on: { click: () => void this.submit() } }, tr('Começar'));
     this.status = h('p', { class: 'ui-rename__hint ui-spawn__status', attrs: { role: 'status', 'aria-live': 'polite' } });
     for (const field of [this.folder, this.prompt] as HTMLElement[]) {
@@ -195,7 +161,7 @@ export class SpawnPanel {
         h('label', { class: 'ui-spawn__label', attrs: { for: 'ui-spawn-prompt' }, text: tr('Pedido') }),
         this.prompt,
         h('div', { class: 'ui-spawn__tools' }, this.dictate.el, attachBtn, this.fileInput),
-        this.fileList,
+        this.files.el,
         h('p', { class: 'ui-rename__hint', text: tr('Começa na hora uma sessão do Claude Code em segundo plano no computador, na pasta escolhida; as permissões chegam aqui. Pasta que o Claude Code ainda não conhece abre no app do Claude e espera o Enter lá. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.') }),
         this.submitBtn,
         this.status,
@@ -311,37 +277,6 @@ export class SpawnPanel {
     }
   }
 
-  private addFiles(list: File[]): void {
-    for (const file of list) {
-      if (this.files.length >= MAX_FILES) {
-        this.say(tr('No máximo {0} anexos por pedido.', [MAX_FILES]), true);
-        break;
-      }
-      if (file.size > MAX_FILE_BYTES) {
-        this.say(tr('{0} passa de {1} MB.', [file.name, MAX_FILE_BYTES / 1024 / 1024]), true);
-        continue;
-      }
-      if (!file.size) continue;
-      const url = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined;
-      const item: PendingFile = { file, url, el: h('li', { class: 'ui-spawn__file' }) };
-      const thumb = url ? h('img', { class: 'ui-spawn__thumb', attrs: { src: url, alt: '' } }) : h('span', { class: 'ui-spawn__thumb ui-spawn__thumb--doc', attrs: { 'aria-hidden': 'true' }, text: (file.name.split('.').pop() ?? '').slice(0, 4).toUpperCase() || tr('ARQ') });
-      const remove = iconButton(ICONS.close, tr('Tirar {0}', [file.name]), () => this.removeFile(item), 'ui-icon-btn--sm ui-spawn__file-x');
-      item.el.append(thumb, h('span', { class: 'ui-spawn__file-name', text: file.name, attrs: { title: file.name } }), h('span', { class: 'ui-spawn__file-size', text: formatBytes(file.size) }), remove);
-      this.files.push(item);
-      this.fileList.append(item.el);
-    }
-  }
-
-  private removeFile(item: PendingFile): void {
-    if (item.url) URL.revokeObjectURL(item.url);
-    item.el.remove();
-    this.files = this.files.filter((f) => f !== item);
-  }
-
-  private clearFiles(): void {
-    for (const f of [...this.files]) this.removeFile(f);
-  }
-
   private say(text: string, error = false): void {
     setText(this.status, text);
     this.status.classList.toggle('is-error', error);
@@ -355,16 +290,7 @@ export class SpawnPanel {
     this.busy = true;
     this.submitBtn.disabled = true;
     try {
-      const ids: string[] = [];
-      for (const [i, f] of this.files.entries()) {
-        this.say(this.files.length > 1 ? tr('Enviando anexos ({0} de {1})…', [i + 1, this.files.length]) : tr('Enviando o anexo…'));
-        const r = await api<{ id: string }>('/api/spawn/attachments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: f.file.name, type: f.file.type, data: await fileToBase64(f.file) }),
-        });
-        ids.push(r.id);
-      }
+      const ids = await this.files.upload('/api/spawn/attachments', (text) => this.say(text));
       this.say(tr('Começando no computador…'));
       let info = await api<SpawnInfo>('/api/spawn', {
         method: 'POST',
@@ -387,7 +313,7 @@ export class SpawnPanel {
           !running && !!info.note,
         );
         this.prompt.value = '';
-        this.clearFiles();
+        this.files.clear();
         writePref(folder);
         this.ctx.announce(running ? tr('Agente novo rodando.') : tr('Agente novo aberto no app do Claude.'));
       } else this.say(info.error ? tr('Não abriu: {0}', [info.error]) : tr('O computador não confirmou a abertura.'), true);

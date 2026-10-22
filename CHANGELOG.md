@@ -18,13 +18,25 @@ do meio (0.**3**.0).
   perto da entrada. Sem banheiros, ping-pong e fliperama, os agentes ociosos fazem as outras atividades. A página
   recarrega ao trocar; o padrão continua sendo **Completas**.
 
+- **Anexos nas mensagens:** cole (Ctrl+V) ou solte imagens e arquivos na caixa de mensagem do terminal ou dos
+  detalhes do agente. Como no **Novo agente**, eles vão para `~/.habblaud/attachments` e a mensagem leva os caminhos
+  para o agente ler (até 8 por mensagem, 15 MB cada). Só com o Habblaud fora do Docker (`npm start`). O **Novo agente**
+  também passa a aceitar colar e soltar arquivos no pedido.
+- Com a gravação desligada (`HABBLAUD_TIMELINE=0`), o botão **Timelapse** e a tecla `L` somem.
+
 - **Estado da sala na placa e na luz:** a faixa à esquerda da placa de cada sala de projeto passa a mostrar o estado
   (no lugar da cor do tema): verde quando alguém trabalha, laranja piscando quando alguém precisa de você e cinza
-  quando todos estão ociosos. Em repouso, a sala fica à meia-luz (os monitores continuam acesos); a luz apagada
+  quando todos estão ociosos. A faixa das salas no painel lateral segue as mesmas cores. Em repouso, a sala fica à meia-luz (os monitores continuam acesos); a luz apagada
   continua sendo "todo mundo foi embora".
 
 ### Corrigido
 
+- **O mod fala o idioma do escritório.** A linha "precisa de você" embaixo do prompt e o `/habblaud` saíam sempre
+  em português; agora seguem o idioma do servidor (`/api/mod/summary` passa a dizer qual é) e, sem resposta dele,
+  o do ambiente (`HABBLAUD_LANG`, `LC_ALL`, `LANG`).
+- **A caixa de mensagem volta logo depois de reiniciar o Habblaud.** Com o servidor fora do ar, o plugin
+  `habblaud-mensagens` passava a perguntar a cada 30 s, e a página pedia para instalar o plugin durante esse tempo;
+  agora pergunta a cada 5 s. Chega com o `npm run docker:up` (ou `npm run mod:install`), nas sessões novas.
 - **Servidor de dev em segundo plano não deixa mais o agente "esperando o shell".** Bash em segundo plano que não
   termina sozinho (`pnpm dev`, `vite`, `next dev`, `nodemon`, `--watch`, `docker compose up` sem `-d`...) não conta
   como espera desde o início; qualquer outro, depois de 10 minutos. O agente fica ocioso e o shell continua listado

@@ -2475,6 +2475,7 @@ export const ES: Readonly<Record<string, string>> = {
   "um anexo expirou: anexe de novo": "un adjunto caducó: adjúntalo de nuevo",
   "Anexo enviado pelo Habblaud (leia antes de começar):": "Adjunto enviado por Habblaud (léelo antes de empezar):",
   "Anexos enviados pelo Habblaud (leia antes de começar):": "Adjuntos enviados por Habblaud (léelos antes de empezar):",
+  "Anexos nas mensagens só funcionam com o Habblaud fora do Docker (npm start)": "Los adjuntos en los mensajes solo funcionan con Habblaud fuera de Docker (npm start)",
 
   // server/spawn/spawn.ts
   "escolha uma pasta (caminho absoluto, ex.: /Users/voce/projeto)": "elige una carpeta (ruta absoluta, p. ej.: /Users/tu/proyecto)",

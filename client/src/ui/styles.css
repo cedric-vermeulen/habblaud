@@ -1579,6 +1579,36 @@
   background: var(--room);
 }
 
+/* Estado da sala (as cores da placa no escritório): trabalhando, precisa de você (piscando), repouso, vazia. */
+.ui-room__head[data-activity='busy']::before {
+  background: #5ee08a;
+}
+
+.ui-room__head[data-activity='waiting']::before {
+  background: #ffa94d;
+  animation: ui-room-waiting 1s ease-in-out infinite;
+}
+
+.ui-room__head[data-activity='rest']::before {
+  background: #8a93a6;
+}
+
+.ui-room__head[data-activity='empty']::before {
+  background: #4a5162;
+}
+
+@keyframes ui-room-waiting {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-room__head[data-activity='waiting']::before {
+    animation: none;
+  }
+}
+
 .ui-room__head:hover {
   background: var(--ui-bg-hover);
 }
@@ -5220,6 +5250,13 @@ button.ui-term__think:hover,
 .ui-msg--terminal .ui-msg__send:hover:not(:disabled) {
   color: var(--ui-text);
   border-color: rgba(124, 200, 255, 0.55);
+}
+
+/* Anexos colados ou soltos na caixa de mensagem: acima da linha do prompt. */
+.ui-msg__files .ui-spawn__files {
+  margin: 0 0 6px;
+  max-height: 132px;
+  overflow-y: auto;
 }
 
 .ui-msg__hint,

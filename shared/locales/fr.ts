@@ -2491,6 +2491,7 @@ export const FR: Readonly<Record<string, string>> = {
   "um anexo expirou: anexe de novo": "une pièce jointe a expiré : joignez-la à nouveau",
   "Anexo enviado pelo Habblaud (leia antes de começar):": "Pièce jointe envoyée par Habblaud (lisez-la avant de commencer) :",
   "Anexos enviados pelo Habblaud (leia antes de começar):": "Pièces jointes envoyées par Habblaud (lisez-les avant de commencer) :",
+  "Anexos nas mensagens só funcionam com o Habblaud fora do Docker (npm start)": "Les pièces jointes dans les messages ne fonctionnent qu’avec Habblaud hors Docker (npm start)",
 
   // server/spawn/spawn.ts
   "escolha uma pasta (caminho absoluto, ex.: /Users/voce/projeto)": "choisissez un dossier (chemin absolu, ex. : /Users/vous/projet)",

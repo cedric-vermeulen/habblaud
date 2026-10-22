@@ -8,7 +8,7 @@
 //    ao Habblaud local se há mensagens para ela: POST http://127.0.0.1:<HABBLAUD_PORT ou 4747>/api/mod/inbox com
 //    {session, account}. A pergunta também marca a presença da sessão: é ela que acende, no escritório, a caixa de
 //    mensagem deste agente. Fora do ar, ou respondendo qualquer coisa que não seja 2xx (403 = mensagens desligadas
-//    no Habblaud; 404 = uma versão sem a rota), passa a perguntar a cada 30 s até ele voltar.
+//    no Habblaud; 404 = uma versão sem a rota), passa a perguntar a cada 5 s até ele voltar.
 // 2. Cada mensagem, na ordem, vai para a sessão por `$.prompt.submit({ text, asUser: true })`: o modelo a lê como
 //    sua, sem o "The habblaud-mensagens plugin sent a message" (o registro da sessão ainda nomeia o plugin). O
 //    texto vai exatamente como chegou. `{drop}` (um hook recusou) ou exceção = falha, com o motivo.
@@ -36,9 +36,9 @@ import type { EngineInterface, HttpResponse, Register } from 'claude-code'
 
 /** Porta padrão do Habblaud (a mesma do servidor, do mod e do docker-compose). */
 export const DEFAULT_PORT = 4747
-/** Intervalo das perguntas ao Habblaud; fora do ar, recua para o segundo até ele voltar. */
+/** Intervalo das perguntas ao Habblaud; fora do ar, recua para o segundo (curto: depois de um reinício do Habblaud, a caixa volta logo). */
 export const POLL_MS = 2_000
-export const OFFLINE_POLL_MS = 30_000
+export const OFFLINE_POLL_MS = 5_000
 /** Quanto esperar o Habblaud local responder (`$.http.fetch` não aceita AbortSignal: a corrida é com um timer). */
 export const FETCH_TIMEOUT_MS = 2_000
 /** Quanto esperar `$.prompt.submit` voltar antes de dar a mensagem como na fila da sessão. */
@@ -257,7 +257,7 @@ async function deliver($: EngineInterface, messages: readonly InboxMessage[]): P
   return results
 }
 
-/** (Re)agenda as rodadas: 2 s com o Habblaud no ar, 30 s fora do ar. */
+/** (Re)agenda as rodadas: 2 s com o Habblaud no ar, 5 s fora do ar. */
 function schedule($: EngineInterface, ms: number): void {
   if (timer && timerMs === ms) return
   timer?.cancel()

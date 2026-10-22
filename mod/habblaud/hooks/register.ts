@@ -65,6 +65,8 @@ export interface WaitingAgent {
 
 export interface Summary {
   version: string
+  /** Idioma do servidor; ausente num Habblaud de antes dele. */
+  locale?: Locale
   agents: number
   working: number
   waiting: WaitingAgent[]
@@ -80,6 +82,8 @@ interface ModEnv {
   /** Pasta do uso; ausente sem HOME (ou USERPROFILE) nem HABBLAUD_USAGE_DIR. */
   usageDir?: string
   port: number
+  /** HABBLAUD_LANG, LC_ALL, LC_MESSAGES ou LANG (o inglês só via HABBLAUD_LANG, como no servidor). */
+  locale?: Locale
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -212,34 +216,122 @@ export function parseSummary(text: string): Summary | undefined {
     if (typeof w.since === 'number' && Number.isFinite(w.since)) agent.since = w.since
     waiting.push(agent)
   }
-  return { version: str(r.version) ?? '?', agents: count(r.agents), working: count(r.working), waiting }
+  const summary: Summary = { version: str(r.version) ?? '?', agents: count(r.agents), working: count(r.working), waiting }
+  const locale = localeOf(r.locale)
+  if (locale) summary.locale = locale
+  return summary
+}
+
+/** Idiomas do Habblaud (shared/i18n.ts); o mod é um arquivo só, então os textos dele moram aqui. */
+export type Locale = 'pt-BR' | 'en' | 'es' | 'fr'
+
+/** "fr_BE.UTF-8", "pt", "en-US"... -> idioma suportado (o normalizeLocale de shared/i18n.ts). */
+export function localeOf(v: unknown): Locale | undefined {
+  const lang = typeof v === 'string' ? v.trim().toLowerCase().split(/[-_.]/)[0] : ''
+  if (lang === 'pt') return 'pt-BR'
+  return lang === 'en' || lang === 'es' || lang === 'fr' ? lang : undefined
+}
+
+interface Texts {
+  one: (name: string, room: string) => string
+  many: (n: number, names: string) => string
+  more: (n: number) => string
+  header: (version: string, url: string) => string
+  agents: (n: number) => string
+  working: (n: number) => string
+  nobody: string
+  waiting: (n: number) => string
+  answerable: string
+  offline: (url: string) => string
+  outdated: (url: string) => string
+  command: string
+}
+
+const TEXTS: Record<Locale, Texts> = {
+  'pt-BR': {
+    one: (name, room) => `${name} precisa de você em ${room}`,
+    many: (n, names) => `${n} precisam de você: ${names}`,
+    more: (n) => ` e mais ${n}`,
+    header: (v, url) => `Habblaud ${v} em ${url}`,
+    agents: (n) => (n === 1 ? '1 agente' : `${n} agentes`),
+    working: (n) => `${n} trabalhando`,
+    nobody: 'ninguém precisa de você',
+    waiting: (n) => (n === 1 ? '1 precisa de você' : `${n} precisam de você`),
+    answerable: 'dá para responder pelo escritório',
+    offline: (url) => `O Habblaud não respondeu em ${url}. Para subir: npm run docker:up na pasta do Habblaud.`,
+    outdated: (url) => `O Habblaud em ${url} está numa versão sem a rota do mod. Para atualizar: git pull e npm run docker:up na pasta do Habblaud.`,
+    command: 'Resumo do Habblaud: quantos agentes, quem trabalha e quem precisa de você',
+  },
+  en: {
+    one: (name, room) => `${name} needs you in ${room}`,
+    many: (n, names) => `${n} need you: ${names}`,
+    more: (n) => ` and ${n} more`,
+    header: (v, url) => `Habblaud ${v} at ${url}`,
+    agents: (n) => (n === 1 ? '1 agent' : `${n} agents`),
+    working: (n) => `${n} working`,
+    nobody: 'nobody needs you',
+    waiting: (n) => (n === 1 ? '1 needs you' : `${n} need you`),
+    answerable: 'can be answered from the office',
+    offline: (url) => `Habblaud did not answer at ${url}. To start it: npm run docker:up in the Habblaud folder.`,
+    outdated: (url) => `Habblaud at ${url} is on a version without the mod route. To update: git pull and npm run docker:up in the Habblaud folder.`,
+    command: 'Habblaud summary: how many agents, who is working and who needs you',
+  },
+  es: {
+    one: (name, room) => `${name} te necesita en ${room}`,
+    many: (n, names) => `${n} te necesitan: ${names}`,
+    more: (n) => ` y ${n} más`,
+    header: (v, url) => `Habblaud ${v} en ${url}`,
+    agents: (n) => (n === 1 ? '1 agente' : `${n} agentes`),
+    working: (n) => `${n} trabajando`,
+    nobody: 'nadie te necesita',
+    waiting: (n) => (n === 1 ? '1 te necesita' : `${n} te necesitan`),
+    answerable: 'se puede responder desde la oficina',
+    offline: (url) => `Habblaud no respondió en ${url}. Para iniciarlo: npm run docker:up en la carpeta de Habblaud.`,
+    outdated: (url) => `Habblaud en ${url} está en una versión sin la ruta del mod. Para actualizar: git pull y npm run docker:up en la carpeta de Habblaud.`,
+    command: 'Resumen de Habblaud: cuántos agentes, quién trabaja y quién te necesita',
+  },
+  fr: {
+    one: (name, room) => `${name} a besoin de vous dans ${room}`,
+    many: (n, names) => `${n} ont besoin de vous : ${names}`,
+    more: (n) => ` et ${n} de plus`,
+    header: (v, url) => `Habblaud ${v} sur ${url}`,
+    agents: (n) => (n === 1 ? '1 agent' : `${n} agents`),
+    working: (n) => `${n} au travail`,
+    nobody: 'personne n’a besoin de vous',
+    waiting: (n) => (n === 1 ? '1 a besoin de vous' : `${n} ont besoin de vous`),
+    answerable: 'réponse possible depuis le bureau',
+    offline: (url) => `Habblaud n’a pas répondu sur ${url}. Pour le lancer : npm run docker:up dans le dossier de Habblaud.`,
+    outdated: (url) => `Habblaud sur ${url} est dans une version sans la route du mod. Pour mettre à jour : git pull puis npm run docker:up dans le dossier de Habblaud.`,
+    command: 'Résumé de Habblaud : combien d’agents, qui travaille et qui a besoin de vous',
+  },
 }
 
 /** A linha embaixo do prompt: undefined quando ninguém (além desta sessão) precisa de você. */
-export function statusText(waiting: readonly WaitingAgent[]): string | undefined {
+export function statusText(waiting: readonly WaitingAgent[], locale: Locale = 'pt-BR'): string | undefined {
+  const t = TEXTS[locale]
   const first = waiting[0]
   if (!first) return undefined
-  if (waiting.length === 1) return `🏢 ${first.name} precisa de você em ${first.room}`
+  if (waiting.length === 1) return `🏢 ${t.one(first.name, first.room)}`
   const shown = waiting.slice(0, MAX_NAMES).map((w) => `${w.name} (${w.room})`)
   const rest = waiting.length - shown.length
-  return `🏢 ${waiting.length} precisam de você: ${shown.join(', ')}${rest > 0 ? ` e mais ${rest}` : ''}`
+  return `🏢 ${t.many(waiting.length, shown.join(', '))}${rest > 0 ? t.more(rest) : ''}`
 }
 
 /** A resposta do /habblaud com o Habblaud no ar. */
-export function summaryText(s: Summary, url: string): string {
-  const agents = s.agents === 1 ? '1 agente' : `${s.agents} agentes`
-  const waiting = s.waiting.length === 0 ? 'ninguém precisa de você' : s.waiting.length === 1 ? '1 precisa de você' : `${s.waiting.length} precisam de você`
-  const lines = [`Habblaud ${s.version} em ${url}`, `${agents} · ${s.working} trabalhando · ${waiting}`]
-  for (const w of s.waiting) lines.push(`✋ ${w.name} (${w.room}): ${w.waitingFor}${w.answerable ? ' · dá para responder pelo escritório' : ''}`)
+export function summaryText(s: Summary, url: string, locale: Locale = 'pt-BR'): string {
+  const t = TEXTS[locale]
+  const waiting = s.waiting.length === 0 ? t.nobody : t.waiting(s.waiting.length)
+  const lines = [t.header(s.version, url), `${t.agents(s.agents)} · ${t.working(s.working)} · ${waiting}`]
+  for (const w of s.waiting) lines.push(`✋ ${w.name} (${w.room}): ${w.waitingFor}${w.answerable ? ` · ${t.answerable}` : ''}`)
   return lines.join('\n')
 }
 
-export function offlineText(url: string): string {
-  return `O Habblaud não respondeu em ${url}. Para subir: npm run docker:up na pasta do Habblaud.`
+export function offlineText(url: string, locale: Locale = 'pt-BR'): string {
+  return TEXTS[locale].offline(url)
 }
 
-export function outdatedText(url: string): string {
-  return `O Habblaud em ${url} está numa versão sem a rota do mod. Para atualizar: git pull e npm run docker:up na pasta do Habblaud.`
+export function outdatedText(url: string, locale: Locale = 'pt-BR'): string {
+  return TEXTS[locale].outdated(url)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -255,6 +347,13 @@ let timer: { cancel: () => void } | undefined
 let timerMs = 0
 /** Uma pergunta por vez: um Habblaud lento não acumula perguntas. */
 let polling = false
+/** Idioma da última resposta do Habblaud: vale também quando ele cai (o /habblaud "fora do ar"). */
+let serverLocale: Locale | undefined
+
+/** Idioma dos textos: o do Habblaud (o mesmo dos motivos de espera), senão o do ambiente, senão o português. */
+function localeFor(e: ModEnv | undefined): Locale {
+  return serverLocale ?? e?.locale ?? 'pt-BR'
+}
 
 /** O ambiente da sessão, lido uma vez por carga (cada nome escrito por extenso, como a análise exige). */
 async function readEnv($: EngineInterface): Promise<ModEnv> {
@@ -266,6 +365,10 @@ async function readEnv($: EngineInterface): Promise<ModEnv> {
     port: portOf(await $.env.get('HABBLAUD_PORT')),
     usageDir: usageDirOf(await $.env.get('HABBLAUD_USAGE_DIR'), home),
   }
+  // A regra do serverLocale (shared/i18n.ts): o inglês do sistema não conta, só o de HABBLAUD_LANG.
+  const system = [await $.env.get('LC_ALL'), await $.env.get('LC_MESSAGES'), await $.env.get('LANG')].map(localeOf).find((l) => l && l !== 'en')
+  const locale = localeOf(await $.env.get('HABBLAUD_LANG')) ?? system
+  if (locale) next.locale = locale
   if (configDir) {
     next.configDir = configDir
     const accountId = accountIdOf(configDir)
@@ -304,7 +407,9 @@ async function askHabblaud($: EngineInterface, port: number, query: string): Pro
     // 404 JSON = um Habblaud de antes do mod (rota desconhecida); outro 404 qualquer = não é o Habblaud.
     if (res.status === 404 && res.text.includes('rota desconhecida')) return { kind: 'outdated' }
     const summary = res.ok ? parseSummary(res.text) : undefined
-    return summary ? { kind: 'ok', summary } : { kind: 'offline' }
+    if (!summary) return { kind: 'offline' }
+    if (summary.locale) serverLocale = summary.locale
+    return { kind: 'ok', summary }
   } catch {
     return { kind: 'offline' }
   } finally {
@@ -350,7 +455,7 @@ async function poll($: EngineInterface): Promise<void> {
       return
     }
     schedule($, POLL_MS)
-    setStatus($, statusText(asked.summary.waiting))
+    setStatus($, statusText(asked.summary.waiting, localeFor(e)))
   } catch {
     // silêncio: a próxima rodada tenta de novo
   } finally {
@@ -363,15 +468,16 @@ async function habblaudText($: EngineInterface): Promise<string> {
   const e = await readEnv($)
   const url = `http://localhost:${e.port}`
   const asked = await askHabblaud($, e.port, '')
-  if (asked.kind === 'outdated') return outdatedText(url)
-  if (asked.kind === 'offline') return offlineText(url)
-  return summaryText(asked.summary, url)
+  if (asked.kind === 'outdated') return outdatedText(url, localeFor(e))
+  if (asked.kind === 'offline') return offlineText(url, localeFor(e))
+  return summaryText(asked.summary, url, localeFor(e))
 }
 
 export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
     try {
-      await $.command.register({ name: 'habblaud', description: 'Resumo do Habblaud: quantos agentes, quem trabalha e quem precisa de você' })
+      // Ainda sem resposta do Habblaud: a descrição sai no idioma do ambiente.
+      await $.command.register({ name: 'habblaud', description: TEXTS[localeFor(await readEnv($))].command })
     } catch {
       // sem o comando, o resto segue
     }
@@ -404,7 +510,7 @@ export const register: Register = (on) => {
     try {
       return { text: await habblaudText($) }
     } catch {
-      return { text: offlineText(`http://localhost:${env?.port ?? DEFAULT_PORT}`) }
+      return { text: offlineText(`http://localhost:${env?.port ?? DEFAULT_PORT}`, localeFor(env)) }
     }
   })
 }

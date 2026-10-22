@@ -1,7 +1,9 @@
 // Mensagens pelo escritório pelas rotas de verdade (guard, app e server/messages/http.ts): a trava da config
 // (terminal + HABBLAUD_MENSAGENS), a trava das rotas (recurso desligado / Host que não é local), os status (400, 404,
 // 405, 409, 429), o fluxo completo página → caixa de entrada do plugin → confirmação → consulta, e o demo.
+import { readdirSync, readFileSync } from 'node:fs';
 import http from 'node:http';
+import { basename, dirname } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { InboxMessage, OfficeSnapshot, OutboxMessage } from '../../shared/types';
@@ -13,6 +15,7 @@ import { Hub } from '../http/sse';
 import { setQuiet } from '../log';
 import { NameStore } from '../model/names';
 import { Office } from '../model/office';
+import { AttachmentStore, writeAttachments } from '../spawn/attachments';
 import { request } from '../test/permission-server';
 import { tempDir } from '../test/fixtures';
 import { createMessageRoutes } from './http';
@@ -31,10 +34,11 @@ interface MessageServer {
 }
 
 /** Office + Hub + rotas de verdade numa porta livre do 127.0.0.1, com um agente principal na sessão "sess-1". */
-async function serveMessages(opts: { enabled?: boolean; demo?: boolean; registry?: Partial<MessageRegistryOptions> } = {}): Promise<MessageServer> {
+async function serveMessages(opts: { enabled?: boolean; demo?: boolean; files?: boolean; registry?: Partial<MessageRegistryOptions> } = {}): Promise<MessageServer> {
   const tmp = tempDir();
   const enabled = opts.enabled ?? true;
   const late: { registry?: MessageRegistry } = {};
+  let uploads = 0;
   const office = new Office({
     names: new NameStore(null),
     version: 't',
@@ -66,7 +70,9 @@ async function serveMessages(opts: { enabled?: boolean; demo?: boolean; registry
     version: 't',
     inDocker: false,
     terminal: true,
-    messages: registry ? createMessageRoutes(registry) : undefined,
+    messages: registry
+      ? createMessageRoutes(registry, opts.files ? { store: new AttachmentStore(), write: (files) => writeAttachments(tmp.dir, `m${++uploads}`, files) } : undefined)
+      : undefined,
   });
   const guard = createRequestGuard({ allowedHosts: new Set(['habblaud.lan']) });
   const server = http.createServer((req, res) => {
@@ -237,6 +243,37 @@ describe('rotas', () => {
     expect(done.updatedAt).toBeGreaterThanOrEqual(done.createdAt);
     const agent = (await snapshot(srv)).agents.find((a) => a.id === MAIN)!;
     expect(agent.recent.at(-1)).toMatchObject({ icon: '✉️', text: 'Mensagem pelo Habblaud', detail: 'Agora roda os testes de novo e me diga o que falhou' });
+  });
+
+  it('anexos: o arquivo é gravado e a mensagem leva o caminho; texto vazio com anexo vale; recusada apaga o arquivo; sem gravação (Docker): 409', async () => {
+    srv = await serveMessages({ files: true });
+    const upload = (name: string) => post(srv!, '/api/messages/attachments', { name, type: 'image/png', data: Buffer.from(`png de ${name}`).toString('base64') });
+    expect((await request(srv.base, '/api/messages/attachments')).status).toBe(405);
+    expect((await post(srv, '/api/messages/attachments', { name: 'a.png', data: '' })).status).toBe(400);
+
+    // Sem o plugin conectado: recusada, e o arquivo gravado para ela some.
+    const lost = (await upload('perdida.png')).json as { id: string };
+    expect((await post(srv, '/api/messages', { agentId: MAIN, text: '', attachments: [lost.id] })).status).toBe(409);
+    // Cada anexo serve a uma mensagem só.
+    expect((await post(srv, '/api/messages', { agentId: MAIN, text: 'oi', attachments: [lost.id] })).status).toBe(400);
+
+    await post(srv, '/api/mod/inbox', { session: SESSION, account: 'acc' });
+    const up = await upload('tela.png');
+    expect(up).toMatchObject({ status: 201, json: { name: 'tela.png', size: 15 } });
+    const created = await post(srv, '/api/messages', { agentId: MAIN, text: '', attachments: [(up.json as { id: string }).id] });
+    expect(created.status).toBe(201);
+    const [msg] = ((await post(srv, '/api/mod/inbox', { session: SESSION, account: 'acc' })).json as { messages: InboxMessage[] }).messages;
+    const path = msg!.text.split('\n').find((l) => l.startsWith('- '))!.slice(2);
+    expect(msg!.text).toMatch(/^Anexo enviado pelo Habblaud/);
+    expect(path).toMatch(/tela\.png$/);
+    expect(readFileSync(path, 'utf8')).toBe('png de tela.png');
+    // Só sobrou a pasta da mensagem entregue: a da recusada foi apagada.
+    expect(readdirSync(dirname(dirname(path))).filter((n) => /-m\d$/.test(n))).toEqual([basename(dirname(path))]);
+    await srv.close();
+
+    srv = await serveMessages();
+    expect((await upload('x.png')).status).toBe(409);
+    expect((await post(srv, '/api/messages', { agentId: MAIN, text: 'oi', attachments: ['x'] })).json).toMatchObject({ error: expect.stringMatching(/fora do Docker/) });
   });
 
   it('a sessão some (sem rodadas): canMessage volta a falso e a mensagem na fila falha no prazo', async () => {
