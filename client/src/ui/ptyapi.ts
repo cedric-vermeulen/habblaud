@@ -49,7 +49,3 @@ export function takeoverAgent(agentId: string): Promise<PtyInfo | undefined> {
 export async function stopAgent(agentId: string): Promise<void> {
   await postPty(`/api/agents/${encodeURIComponent(agentId)}/stop`, {});
 }
-
-export async function closePty(id: string): Promise<void> {
-  await postPty(`/api/pty/${encodeURIComponent(id)}/close`, {});
-}
