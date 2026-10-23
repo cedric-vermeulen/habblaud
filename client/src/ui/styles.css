@@ -5301,6 +5301,10 @@ button.ui-term__think:hover,
   cursor: help;
 }
 
+a.ui-md__link {
+  cursor: pointer;
+}
+
 .ui-md__block {
   position: relative;
   border-radius: 5px;

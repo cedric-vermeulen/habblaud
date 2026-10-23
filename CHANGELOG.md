@@ -10,6 +10,11 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Corrigido
+
+- **Links nas respostas do agente abrem.** Links `http(s)` no terminal e nas Entregas abrem numa aba nova; os outros
+  continuam como texto, com o endereço na dica.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido

@@ -4,7 +4,7 @@
 //
 // Cobertura (o que o Claude Code costuma escrever): blocos ``` com linguagem, `código`, **negrito**, *itálico*,
 // títulos #, listas com marcador e numeradas (com aninhamento), citação >, linha horizontal, tabelas
-// (preservadas como texto pré-formatado) e links (viram texto; o endereço fica na dica).
+// (preservadas como texto pré-formatado) e links (http(s) abre em aba nova; o resto vira texto com o endereço na dica).
 
 export type MdInline =
   | { type: 'text'; text: string }
@@ -316,11 +316,17 @@ function appendInline(parent: HTMLElement, nodes: readonly MdInline[]): void {
         break;
       }
       case 'link': {
-        // Link vira texto (nada clicável vindo do transcript); o endereço fica na dica.
-        const el = document.createElement('span');
+        // Só http(s) vira link clicável (aba nova); o resto fica texto, com o endereço na dica.
+        const web = /^https?:\/\//i.test(n.href);
+        const el = document.createElement(web ? 'a' : 'span');
         el.className = 'ui-md__link';
         el.textContent = n.text || n.href;
         el.title = n.href;
+        if (el instanceof HTMLAnchorElement) {
+          el.href = n.href;
+          el.target = '_blank';
+          el.rel = 'noopener noreferrer';
+        }
         parent.append(el);
         break;
       }
