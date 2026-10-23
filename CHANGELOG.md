@@ -10,6 +10,11 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Corrigido
+
+- **Terminal interativo: Shift+Enter quebra a linha.** Antes enviava o pedido, como o Enter; agora insere uma nova
+  linha no prompt do Claude Code.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido
