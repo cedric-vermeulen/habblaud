@@ -37,6 +37,8 @@ do meio (0.**3**.0).
 
 ### Corrigido
 
+- **Links nas respostas do agente abrem.** Links `http(s)` no terminal e nas Entregas abrem numa aba nova; os outros
+  continuam como texto, com o endereço na dica.
 - **Terminal interativo: Shift+Enter quebra a linha.** Antes enviava o pedido, como o Enter; agora insere uma nova
   linha no prompt do Claude Code.
 - **O mod fala o idioma do escritório.** A linha "precisa de você" embaixo do prompt e o `/habblaud` saíam sempre
