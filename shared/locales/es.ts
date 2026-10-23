@@ -2352,6 +2352,7 @@ export const ES: Readonly<Record<string, string>> = {
   "falha ao encerrar {0}: {1}": "no se pudo detener {0}: {1}",
   "{0} agente(s) encerrado(s), {1} já parado(s).": "{0} agente(s) detenido(s), {1} ya detenido(s).",
   "Sessão em segundo plano não começou ({0}): abrindo direto no terminal.": "La sesión en segundo plano no empezó ({0}): abriendo directo en el terminal.",
+  "Não consegui reabrir a sessão em segundo plano {0}: {1}": "No pude reabrir la sesión en segundo plano {0}: {1}",
   "Abrir no terminal interativo": "Abrir en el terminal interactivo",
   "Começa a sessão em segundo plano e já abre no terminal interativo do Habblaud, com o pedido: dá para digitar, responder e usar os comandos. Reiniciar o Habblaud não encerra o agente (o npm run agents:stop encerra). Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.": "Inicia la sesión en segundo plano y la abre enseguida en el terminal interactivo de Habblaud, con el pedido: puedes escribir, responder y usar los comandos. Reiniciar Habblaud no detiene al agente (npm run agents:stop sí). Los adjuntos van a ~/.habblaud/attachments y el pedido lleva sus rutas.",
   "Rodando: a sessão já começou no computador e aparece no escritório em instantes.": "En ejecución: la sesión ya empezó en el equipo y aparecerá en la oficina en unos instantes.",

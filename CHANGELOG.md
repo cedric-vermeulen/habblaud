@@ -41,6 +41,9 @@ do meio (0.**3**.0).
   continuam como texto, com o endereço na dica.
 - **Terminal interativo: Shift+Enter quebra a linha.** Antes enviava o pedido, como o Enter; agora insere uma nova
   linha no prompt do Claude Code.
+- **Reiniciar o Habblaud não tira mais os agentes do terminal interativo.** As sessões em segundo plano abertas no
+  terminal do Habblaud (`claude attach`) voltam a abrir nele sozinhas ao reiniciar, se ainda estiverem rodando; antes
+  era preciso "Assumir daqui" de novo. A lista fica em `~/.habblaud/attached.json`.
 - **O mod fala o idioma do escritório.** A linha "precisa de você" embaixo do prompt e o `/habblaud` saíam sempre
   em português; agora seguem o idioma do servidor (`/api/mod/summary` passa a dizer qual é) e, sem resposta dele,
   o do ambiente (`HABBLAUD_LANG`, `LC_ALL`, `LANG`).
