@@ -10,6 +10,11 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Alterado
+
+- **Lista de salas: a sala e o agente do terminal aberto ficam destacados.** Com a janela de terminal aberta, o cartão
+  do projeto ganha uma borda na cor de destaque e a linha do agente fica tingida, para saber de relance onde se está.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido
