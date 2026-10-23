@@ -1556,6 +1556,17 @@
   opacity: 0.55;
 }
 
+/* Sala do agente cujo terminal está aberto: dá para saber onde se está sem ler o título. */
+.ui-room:has(.ui-node__term.is-on) {
+  border-color: color-mix(in srgb, var(--ui-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--ui-accent) 7%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ui-accent) 35%, transparent);
+}
+
+.ui-node__head:has(.ui-node__term.is-on) > .ui-agent:not(.is-selected, :hover) {
+  background: color-mix(in srgb, var(--ui-accent) 14%, transparent);
+}
+
 .ui-room__head {
   --room: var(--ui-accent);
   position: relative;
