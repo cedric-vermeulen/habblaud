@@ -17,6 +17,7 @@ import {
   spawnProblem,
   type PtyAgentRef,
   type PtyManagerOptions,
+  type AttachedJob,
   type PtyProcess,
   type PtyScreen,
   type SpawnPty,
@@ -318,6 +319,29 @@ describe('PtyManager: sessão nova com pedido', () => {
     expect(startJob).toHaveBeenCalledWith({ folder: tmpdir(), prompt: 'oi' });
     expect(s.spawned.map((p) => p.args)).toEqual([['attach', 'job12345']]);
     expect(info).toMatchObject({ attached: 'job12345', agentId: 'acc:7777' });
+  });
+
+  it('em segundo plano: lembra o attach e, ao reiniciar, reabre só as sessões que ainda rodam', async () => {
+    let saved: AttachedJob[] = [];
+    const attachedStore = { read: () => saved, write: (jobs: readonly AttachedJob[]) => void (saved = [...jobs]) };
+    const findJobPid = (_dir: string, job: string) => (job === 'job12345' ? 7777 : job === 'gone0001' ? 6666 : undefined);
+    const s = setup({ startJob: async () => ({ ok: true as const, id: 'job12345' }), findJobPid, attachedStore });
+    await s.manager.createBackground({ cwd: tmpdir(), prompt: 'oi' });
+    expect(saved).toEqual([{ job: 'job12345', cwd: tmpdir(), account: 'acc' }]);
+
+    saved.push({ job: 'gone0001', cwd: tmpdir(), account: 'acc' });
+    s.manager.stopAll();
+    expect(saved).toHaveLength(2);
+
+    const next = setup({ findJobPid, attachedStore });
+    next.alive.add(7777);
+    next.manager.restoreAttached();
+    expect(next.spawned.map((p) => p.args)).toEqual([['attach', 'job12345']]);
+    expect(next.manager.list()).toMatchObject([{ attached: 'job12345', agentId: 'acc:7777' }]);
+    expect(saved).toEqual([{ job: 'job12345', cwd: tmpdir(), account: 'acc' }]);
+
+    next.manager.close(next.manager.list()[0].id);
+    expect(saved).toEqual([]);
   });
 
   it('em segundo plano: se o `--bg` falha, abre direto com o pedido', async () => {

@@ -97,10 +97,24 @@ export interface PtyManagerOptions {
   startJob?: CliRunner;
   /** PID da sessão em segundo plano `job` no registro da conta (padrão: lê `<conta>/sessions/*.json`). */
   findJobPid?: (accountDir: string, job: string) => number | undefined;
+  /** Onde lembrar as sessões abertas com `claude attach`, para reabri-las quando o Habblaud reinicia (pty/attached.ts). */
+  attachedStore?: AttachedStore;
   /** Tela de cada terminal, reproduzida para quem conecta (padrão: só a saída bruta; ver pty/screen.ts). */
   createScreen?: ScreenFactory;
   isAlive?: (pid: number) => boolean;
   sleep?: (ms: number) => Promise<void>;
+}
+
+/** Sessão em segundo plano aberta num terminal daqui (`claude attach <job>`). */
+export interface AttachedJob {
+  job: string;
+  cwd: string;
+  account: string;
+}
+
+export interface AttachedStore {
+  read(): AttachedJob[];
+  write(jobs: readonly AttachedJob[]): void;
 }
 
 /** Saída bruta guardada por terminal quando não há o @xterm/headless (ver rawScreen). */
@@ -203,6 +217,8 @@ export class PtyManager {
   private seq = 0;
   /** "Assumir" em andamento por agente: um duplo clique (ou duas abas) recebe o mesmo resultado. */
   private takeovers = new Map<string, Promise<PtyInfo>>();
+  /** Encerrando o servidor: os `claude attach` saem, mas continuam lembrados para reabrir. */
+  private stopping = false;
   private readonly now: () => number;
   private readonly killPid: (pid: number, proc: ProcInfo) => void | Promise<void>;
   private readonly forceKill: (pid: number) => void;
@@ -274,6 +290,33 @@ export class PtyManager {
     const pid = await this.waitJobPid(plan.account.dir, r.id);
     // O pedido já esperou o `--bg`: confere de novo o limite de terminais.
     return this.spawn(this.plan(p, this.takeovers.size), { attach: r.id, agentId: pid ? `${plan.account.id}:${pid}` : undefined });
+  }
+
+  /** Reabre aqui as sessões em segundo plano que estavam abertas quando o Habblaud parou e ainda rodam. */
+  restoreAttached(): void {
+    const store = this.opts.attachedStore;
+    if (!store || !this.opts.spawn) return;
+    const find = this.opts.findJobPid ?? findJobPid;
+    for (const j of store.read()) {
+      const account = this.opts.accounts().find((a) => a.id === j.account);
+      const pid = account && JOB_ID.test(j.job) ? find(account.dir, j.job) : undefined;
+      if (!pid || !this.isAlive(pid)) continue;
+      try {
+        this.spawn(this.plan({ cwd: j.cwd, account: j.account }), { attach: j.job, agentId: `${j.account}:${pid}` });
+      } catch (err) {
+        log.warn(tr('Não consegui reabrir a sessão em segundo plano {0}: {1}', [j.job, errMsg(err)]));
+      }
+    }
+    this.saveAttached();
+  }
+
+  private saveAttached(): void {
+    if (this.stopping || !this.opts.attachedStore) return;
+    const jobs: AttachedJob[] = [];
+    for (const t of this.ptys.values()) {
+      if (t.info.attached && t.info.exitedAt === undefined) jobs.push({ job: t.info.attached, cwd: t.info.cwd, account: t.info.account });
+    }
+    this.opts.attachedStore.write(jobs);
   }
 
   private async waitJobPid(accountDir: string, job: string): Promise<number | undefined> {
@@ -422,6 +465,7 @@ export class PtyManager {
   }
 
   stopAll(): void {
+    this.stopping = true;
     for (const t of this.ptys.values()) {
       for (const c of t.clients) c.end();
       for (const c of t.pending.keys()) c.end();
@@ -506,9 +550,11 @@ export class PtyManager {
       pty.info.exitedAt = this.now();
       pty.info.exitCode = exitCode;
       this.broadcast(pty, 'exit', { code: exitCode });
+      if (info.attached) this.saveAttached();
       this.opts.onChange();
     });
     log.info(p.resume ? tr('Terminal {0} aberto em {1} (conta {2}, retomando {3}).', [id, cwd, account.id, p.resume]) : tr('Terminal {0} aberto em {1} (conta {2}).', [id, cwd, account.id]));
+    if (p.attach) this.saveAttached();
     this.opts.onChange();
     return { ...info };
   }

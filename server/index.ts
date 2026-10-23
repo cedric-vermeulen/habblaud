@@ -23,6 +23,7 @@ import { NameStore } from './model/names';
 import { Office } from './model/office';
 import { RoomAliases } from './model/room-aliases';
 import { createPtyRoutes } from './http/pty';
+import { attachedStore } from './pty/attached';
 import { claudeBinFrom, isExecutableFile, loadPty, PtyManager, type ScreenFactory, type SpawnPty } from './pty/manager';
 import { loadHeadlessScreen } from './pty/screen';
 import { openMainAgent, SessionHistory } from './sources/history';
@@ -319,8 +320,10 @@ const ptys = spawnPty
       onChange: () => office.markDirty(),
       createScreen: ptyScreen,
       startJob: bgRunner,
+      attachedStore: attachedStore(),
     })
   : undefined;
+ptys?.restoreAttached();
 late.ptys = ptys;
 late.ptyOff = ptyOff;
 
