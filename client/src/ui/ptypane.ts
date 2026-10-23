@@ -35,6 +35,12 @@ export class PtyPane {
     this.fit = new FitAddon();
     this.term.loadAddon(this.fit);
     this.term.open(this.el);
+    // Shift+Enter: o xterm manda o mesmo \r do Enter; ESC+\r é a quebra de linha que o Claude Code entende.
+    this.term.attachCustomKeyEventHandler((e) => {
+      if (e.key !== 'Enter' || !e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return true;
+      if (e.type === 'keydown') this.send('\x1b\r');
+      return false;
+    });
     this.term.onData((d) => this.send(d));
     this.term.onResize(({ cols, rows }) => this.scheduleResize(cols, rows));
     this.ro = new ResizeObserver(() => this.refit());

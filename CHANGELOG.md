@@ -37,6 +37,8 @@ do meio (0.**3**.0).
 
 ### Corrigido
 
+- **Terminal interativo: Shift+Enter quebra a linha.** Antes enviava o pedido, como o Enter; agora insere uma nova
+  linha no prompt do Claude Code.
 - **O mod fala o idioma do escritório.** A linha "precisa de você" embaixo do prompt e o `/habblaud` saíam sempre
   em português; agora seguem o idioma do servidor (`/api/mod/summary` passa a dizer qual é) e, sem resposta dele,
   o do ambiente (`HABBLAUD_LANG`, `LC_ALL`, `LANG`).
