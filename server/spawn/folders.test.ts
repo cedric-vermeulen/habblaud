@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { projectFolder, recentFolders } from './folders';
+import { HiddenFolders } from './hidden';
 
 describe('pastas sugeridas no Novo agente', () => {
   it('worktree de agente vira o projeto; temporária e relativa ficam de fora', () => {
@@ -29,5 +30,17 @@ describe('pastas sugeridas no Novo agente', () => {
       { path: '/Users/a/habblaud', name: 'habblaud', lastAt: 200, sessions: 1 },
     ]);
     expect(recentFolders(sessions, rooms, 1).map((f) => f.path)).toEqual(['/Users/a/loja']);
+  });
+
+  it('pasta escondida sai da lista até ter atividade nova', () => {
+    let now = 1_000;
+    const hidden = new HiddenFolders(null, () => now);
+    hidden.hide('C:\\Users\\a\\Oculus\\');
+    const sessions = [{ project: 'C:\\Users\\a\\Oculus', lastAt: 900 }, { project: 'C:\\Users\\a\\loja', lastAt: 800 }];
+    const has = (p: string, at: number) => hidden.has(p, at);
+    expect(recentFolders(sessions, [], 1, has).map((f) => f.name)).toEqual(['loja']);
+    now = 2_000;
+    sessions[0]!.lastAt = 1_500;
+    expect(recentFolders(sessions, [], undefined, has).map((f) => f.name)).toEqual(['Oculus', 'loja']);
   });
 });

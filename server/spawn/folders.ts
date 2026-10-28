@@ -1,7 +1,7 @@
 // Pastas sugeridas no "Novo agente": os projetos em que você trabalhou por último, para escolher com um toque em vez de
 // lembrar o caminho. Vêm do histórico de sessões (o `cwd` dos transcripts, de todas as contas e ferramentas) e das salas
 // do escritório. Worktrees de agentes (<projeto>/.claude/worktrees/<nome>) contam como o projeto; pastas temporárias
-// (e as scratch-workspaces do app do Claude) ficam de fora. Node puro: só junta e ordena (quem lê os transcripts é
+// (e as scratch-workspaces do app do Claude) ficam de fora, assim como as que o usuário escondeu (spawn/hidden.ts). Node puro: só junta e ordena (quem lê os transcripts é
 // sources/history.ts).
 
 export interface SpawnFolder {
@@ -39,6 +39,7 @@ export function recentFolders(
   sessions: ReadonlyArray<{ project?: string; lastAt: number }>,
   rooms: ReadonlyArray<{ path?: string; lastAt?: number }>,
   limit = FOLDERS_LIMIT,
+  hidden?: (path: string, lastAt: number) => boolean,
 ): SpawnFolder[] {
   const byPath = new Map<string, SpawnFolder>();
   const add = (raw: string | undefined, lastAt: number, session: boolean) => {
@@ -52,5 +53,8 @@ export function recentFolders(
   };
   for (const s of sessions) add(s.project, s.lastAt, true);
   for (const r of rooms) add(r.path, r.lastAt ?? 0, false);
-  return [...byPath.values()].sort((a, b) => b.lastAt - a.lastAt || a.path.localeCompare(b.path)).slice(0, limit);
+  return [...byPath.values()]
+    .filter((f) => !hidden?.(f.path, f.lastAt))
+    .sort((a, b) => b.lastAt - a.lastAt || a.path.localeCompare(b.path))
+    .slice(0, limit);
 }

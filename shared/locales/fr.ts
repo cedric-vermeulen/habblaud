@@ -2346,6 +2346,9 @@ export const FR: Readonly<Record<string, string>> = {
   // client/src/ui/spawn.ts
   "não deu para ler o arquivo": "impossible de lire le fichier",
   "Projetos recentes": "Projets récents",
+  "Tirar {0} da lista": "Retirer {0} de la liste",
+  "Não deu para tirar da lista: {0}": "Impossible de retirer de la liste : {0}",
+  "{0} ilegível ({1}); todas as pastas voltam à lista.": "{0} illisible ({1}) ; tous les dossiers reviennent dans la liste.",
   "+ Outra pasta": "+ Autre dossier",
   "Caminho da pasta": "Chemin du dossier",
   "O que o agente deve fazer (opcional)": "Ce que l'agent doit faire (facultatif)",
@@ -2429,6 +2432,7 @@ export const FR: Readonly<Record<string, string>> = {
   "novo agente pelo escritório desligado": "nouvel agent depuis le bureau désactivé",
   "agentes novos só são abertos pelo próprio computador (http://localhost)": "les nouveaux agents ne s'ouvrent que depuis l'ordinateur lui-même (http://localhost)",
   "anexos desligados": "pièces jointes désactivées",
+  "pasta inválida": "dossier invalide",
   "ditado desligado": "dictée désactivée",
   "o ditado só funciona pelo próprio computador (http://localhost)": "la dictée ne fonctionne que depuis l'ordinateur lui-même (http://localhost)",
   "ditado desconhecido": "dictée inconnue",
