@@ -269,7 +269,7 @@ export class SpawnPanel {
       ...this.folders.map((f) => {
         const on = f.path === this.selected && !this.typing;
         const when = ago(f.lastAt, now);
-        return h(
+        const card = h(
           'button',
           {
             class: `ui-spawn__folder${on ? ' is-on' : ''}`,
@@ -282,6 +282,8 @@ export class SpawnPanel {
           h('span', { class: 'ui-spawn__folder-path', text: shortPath(f.path) }),
           when ? h('span', { class: 'ui-spawn__folder-when', text: when }) : null,
         );
+        const remove = iconButton(ICONS.close, tr('Tirar {0} da lista', [f.name]), () => void this.hideFolder(f.path), 'ui-icon-btn--sm ui-spawn__folder-hide');
+        return h('div', { class: 'ui-spawn__folder-row' }, card, remove);
       }),
     );
     if (!this.folders.length) this.showOther(true);
@@ -293,6 +295,18 @@ export class SpawnPanel {
     this.typing = false;
     setHidden(this.folder, true);
     this.otherBtn.classList.remove('is-on');
+    this.renderFolders();
+  }
+
+  /** Tira a pasta da lista (volta sozinha quando houver sessão nova nela). */
+  private async hideFolder(path: string): Promise<void> {
+    try {
+      await api('/api/spawn/folders/hide', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) });
+    } catch (err) {
+      return this.say(tr('Não deu para tirar da lista: {0}', [(err as Error).message]), true);
+    }
+    this.folders = this.folders.filter((f) => f.path !== path);
+    if (this.selected === path && !this.typing) this.selected = this.folders[0]?.path ?? '';
     this.renderFolders();
   }
 

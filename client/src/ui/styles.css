@@ -7808,6 +7808,39 @@ html.is-replay #world {
   color: var(--ui-faint);
 }
 
+.ui-spawn__folder-row {
+  position: relative;
+}
+
+/* O × de tirar da lista aparece no lugar do "há quanto tempo" ao passar o mouse. */
+.ui-spawn__folder-hide {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  opacity: 0;
+}
+
+.ui-spawn__folder-row:hover .ui-spawn__folder-hide,
+.ui-spawn__folder-hide:focus-visible {
+  opacity: 1;
+}
+
+.ui-spawn__folder-row:hover .ui-spawn__folder-when,
+.ui-spawn__folder-row:has(.ui-spawn__folder-hide:focus-visible) .ui-spawn__folder-when {
+  visibility: hidden;
+}
+
+@media (hover: none) {
+  .ui-spawn__folder-hide {
+    opacity: 1;
+  }
+
+  .ui-spawn__folder {
+    padding-right: 40px;
+  }
+}
+
 .ui-spawn__other {
   margin: 6px 0 0;
   padding: 6px 2px;

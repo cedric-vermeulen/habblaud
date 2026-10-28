@@ -10,6 +10,11 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Novo agente: tirar um projeto da lista.** O × que aparece ao passar o mouse num cartão de projeto tira a pasta da
+  lista (útil para pastas de uma vez só). Ela volta sozinha se houver uma sessão nova nela.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido

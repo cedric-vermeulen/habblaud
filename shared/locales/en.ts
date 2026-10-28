@@ -2325,6 +2325,9 @@ export const EN: Readonly<Record<string, string>> = {
   // client/src/ui/spawn.ts
   "não deu para ler o arquivo": "couldn't read the file",
   "Projetos recentes": "Recent projects",
+  "Tirar {0} da lista": "Remove {0} from the list",
+  "Não deu para tirar da lista: {0}": "Could not remove from the list: {0}",
+  "{0} ilegível ({1}); todas as pastas voltam à lista.": "{0} unreadable ({1}); all folders are back in the list.",
   "+ Outra pasta": "+ Other folder",
   "Caminho da pasta": "Folder path",
   "O que o agente deve fazer (opcional)": "What the agent should do (optional)",
@@ -2400,6 +2403,7 @@ export const EN: Readonly<Record<string, string>> = {
   "novo agente pelo escritório desligado": "new agent from the office disabled",
   "agentes novos só são abertos pelo próprio computador (http://localhost)": "new agents can only be opened from the computer running Habblaud (http://localhost)",
   "anexos desligados": "attachments disabled",
+  "pasta inválida": "invalid folder",
   "ditado desligado": "dictation disabled",
   "o ditado só funciona pelo próprio computador (http://localhost)": "dictation only works from the computer running Habblaud (http://localhost)",
   "ditado desconhecido": "unknown dictation",
