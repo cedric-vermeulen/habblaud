@@ -48,7 +48,7 @@ import { createCliRunner, createOpener, SpawnService } from './spawn/spawn';
 import { runnableClaudeBin } from './claude-bin';
 import { AttachmentStore, attachmentsRoot, writeAttachments, type Attachment } from './spawn/attachments';
 import { recentFolders } from './spawn/folders';
-import { HiddenFolders } from './spawn/hidden';
+import { FolderPrefs } from './spawn/prefs';
 import { isDemoId } from '../shared/timeline';
 import { DictationService } from './dictation/dictation';
 import { createWhisperTranscriber, findWhisper } from './dictation/whisper';
@@ -81,9 +81,9 @@ names.load();
 // Nomes de sala escolhidos pelo usuário (botão direito > Renomear).
 const roomAliases = new RoomAliases(join(config.dataDir, 'rooms.json'));
 roomAliases.load();
-// Pastas tiradas da lista do "Novo agente".
-const hiddenFolders = new HiddenFolders(join(config.dataDir, 'spawn-hidden.json'));
-hiddenFolders.load();
+// Pastas tiradas da lista do "Novo agente" e favoritas.
+const folderPrefs = new FolderPrefs(join(config.dataDir, 'spawn-folders.json'));
+folderPrefs.load();
 
 // Office, contas e fontes de agentes se referenciam (avisos de mudança / fontes): ligação tardia.
 const late: { office?: Office; agents?: SourceSet; permissions?: PermissionRegistry; messages?: MessageRegistry; ptys?: PtyManager; ptyOff?: string } = {};
@@ -384,9 +384,10 @@ const api = createApiHandler({
     const last = new Map<string, number>();
     for (const a of snap.agents) last.set(a.roomId, Math.max(last.get(a.roomId) ?? 0, a.lastEventAt ?? 0));
     const rooms = snap.rooms.filter((r) => !isDemoId(r.id)).map((r) => ({ path: r.path, lastAt: last.get(r.id) ?? 0 }));
-    return recentFolders(history ? await history.list().catch(() => []) : [], rooms, undefined, (path, lastAt) => hiddenFolders.has(path, lastAt));
+    return recentFolders(history ? await history.list().catch(() => []) : [], rooms, undefined, folderPrefs);
   },
-  hideSpawnFolder: (path) => hiddenFolders.hide(path),
+  hideSpawnFolder: (path) => folderPrefs.hide(path),
+  starSpawnFolder: (path, on) => folderPrefs.star(path, on),
   codexLive,
   stats,
   updates,

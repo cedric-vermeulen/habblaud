@@ -69,6 +69,8 @@ export interface ApiDeps {
   spawnFolders?: () => Promise<SpawnFolder[]>;
   /** Tira uma pasta dessa lista até a próxima atividade nela (POST /api/spawn/folders/hide; spawn/hidden.ts). */
   hideSpawnFolder?: (path: string) => void;
+  /** Marca ou desmarca uma pasta como favorita (POST /api/spawn/folders/star; spawn/prefs.ts). */
+  starSpawnFolder?: (path: string, on: boolean) => void;
   /** Anexos do "Novo agente" (POST /api/spawn/attachments; spawn/attachments.ts). */
   attachments?: AttachmentStore;
   /** Ditado (/api/dictation e, para o auxiliar do host, /api/host/dictation/*; dictation/dictation.ts). */
@@ -501,14 +503,15 @@ export function createApiHandler(deps: ApiDeps): (req: IncomingMessage, res: Ser
       else if (path === '/api/spawn/folders') {
         if (!isRead) methodNotAllowed(res, 'GET');
         else (deps.spawnFolders ?? (async () => []))().then((folders) => sendJson(res, 200, { folders }), (err) => fail(res, err));
-      } else if (path === '/api/spawn/folders/hide') {
+      } else if (path === '/api/spawn/folders/hide' || path === '/api/spawn/folders/star') {
         if (method !== 'POST') methodNotAllowed(res, 'POST');
         else
           readJson(req)
             .then((body) => {
-              const folder = (body as { path?: unknown } | null)?.path;
+              const { path: folder, on } = (body ?? {}) as { path?: unknown; on?: unknown };
               if (typeof folder !== 'string' || !folder.trim()) return sendJson(res, 400, { error: tr('pasta inválida') });
-              deps.hideSpawnFolder?.(folder);
+              if (path.endsWith('/hide')) deps.hideSpawnFolder?.(folder);
+              else deps.starSpawnFolder?.(folder, on !== false);
               sendJson(res, 200, { ok: true });
             })
             .catch((err) => fail(res, err));

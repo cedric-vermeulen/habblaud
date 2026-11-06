@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { projectFolder, recentFolders } from './folders';
-import { HiddenFolders } from './hidden';
+import { FolderPrefs } from './prefs';
 
 describe('pastas sugeridas no Novo agente', () => {
   it('worktree de agente vira o projeto; temporária e relativa ficam de fora', () => {
@@ -34,13 +34,23 @@ describe('pastas sugeridas no Novo agente', () => {
 
   it('pasta escondida sai da lista até ter atividade nova', () => {
     let now = 1_000;
-    const hidden = new HiddenFolders(null, () => now);
-    hidden.hide('C:\\Users\\a\\Oculus\\');
+    const prefs = new FolderPrefs(null, () => now);
+    prefs.hide('C:\\Users\\a\\Oculus\\');
     const sessions = [{ project: 'C:\\Users\\a\\Oculus', lastAt: 900 }, { project: 'C:\\Users\\a\\loja', lastAt: 800 }];
-    const has = (p: string, at: number) => hidden.has(p, at);
-    expect(recentFolders(sessions, [], 1, has).map((f) => f.name)).toEqual(['loja']);
+    expect(recentFolders(sessions, [], 1, prefs).map((f) => f.name)).toEqual(['loja']);
     now = 2_000;
     sessions[0]!.lastAt = 1_500;
-    expect(recentFolders(sessions, [], undefined, has).map((f) => f.name)).toEqual(['Oculus', 'loja']);
+    expect(recentFolders(sessions, [], undefined, prefs).map((f) => f.name)).toEqual(['Oculus', 'loja']);
+  });
+
+  it('favoritas ficam no topo, fora do limite, mesmo sem sessão ou escondidas antes', () => {
+    const prefs = new FolderPrefs(null, () => 1_000);
+    prefs.hide('/Users/a/velho');
+    prefs.star('/Users/a/velho/', true);
+    prefs.star('/Users/a/zeta', true);
+    const sessions = [{ project: '/Users/a/loja', lastAt: 900 }, { project: '/Users/a/site', lastAt: 800 }, { project: '/Users/a/zeta', lastAt: 950 }];
+    expect(recentFolders(sessions, [], 1, prefs).map((f) => [f.name, !!f.starred])).toEqual([['velho', true], ['zeta', true], ['loja', false]]);
+    prefs.star('/Users/a/zeta', false);
+    expect(recentFolders(sessions, [], 1, prefs).map((f) => f.name)).toEqual(['velho', 'zeta']);
   });
 });

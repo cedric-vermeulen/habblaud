@@ -1,7 +1,7 @@
 // Pastas sugeridas no "Novo agente": os projetos em que você trabalhou por último, para escolher com um toque em vez de
 // lembrar o caminho. Vêm do histórico de sessões (o `cwd` dos transcripts, de todas as contas e ferramentas) e das salas
 // do escritório. Worktrees de agentes (<projeto>/.claude/worktrees/<nome>) contam como o projeto; pastas temporárias
-// (e as scratch-workspaces do app do Claude) ficam de fora, assim como as que o usuário escondeu (spawn/hidden.ts). Node puro: só junta e ordena (quem lê os transcripts é
+// (e as scratch-workspaces do app do Claude) ficam de fora, assim como as que o usuário escondeu; as favoritas ficam sempre no topo (spawn/prefs.ts). Node puro: só junta e ordena (quem lê os transcripts é
 // sources/history.ts).
 
 export interface SpawnFolder {
@@ -13,9 +13,19 @@ export interface SpawnFolder {
   lastAt: number;
   /** Sessões recentes nesta pasta. */
   sessions: number;
+  /** Favorita (estrela): sempre no topo, fora do limite. */
+  starred?: boolean;
 }
 
-export const FOLDERS_LIMIT = 15;
+/** O que a lista consulta das preferências do usuário (spawn/prefs.ts). */
+export interface FolderFilter {
+  isHidden(path: string, lastAt: number): boolean;
+  isStarred(path: string): boolean;
+  starredPaths(): string[];
+}
+
+/** Pastas não favoritas mostradas (as favoritas vêm todas, por cima). */
+export const FOLDERS_LIMIT = 30;
 
 const TEMP = /^(\/private)?\/(tmp|var\/folders|var\/tmp)(\/|$)/;
 /** Pastas descartáveis que o app desktop do Claude cria para sessões sem projeto. */
@@ -39,7 +49,7 @@ export function recentFolders(
   sessions: ReadonlyArray<{ project?: string; lastAt: number }>,
   rooms: ReadonlyArray<{ path?: string; lastAt?: number }>,
   limit = FOLDERS_LIMIT,
-  hidden?: (path: string, lastAt: number) => boolean,
+  prefs?: FolderFilter,
 ): SpawnFolder[] {
   const byPath = new Map<string, SpawnFolder>();
   const add = (raw: string | undefined, lastAt: number, session: boolean) => {
@@ -53,8 +63,12 @@ export function recentFolders(
   };
   for (const s of sessions) add(s.project, s.lastAt, true);
   for (const r of rooms) add(r.path, r.lastAt ?? 0, false);
-  return [...byPath.values()]
-    .filter((f) => !hidden?.(f.path, f.lastAt))
-    .sort((a, b) => b.lastAt - a.lastAt || a.path.localeCompare(b.path))
-    .slice(0, limit);
+  for (const p of prefs?.starredPaths() ?? []) add(p, 0, false);
+  const all = [...byPath.values()];
+  const starred = all.filter((f) => prefs?.isStarred(f.path)).map((f) => ({ ...f, starred: true }));
+  const rest = all.filter((f) => !prefs?.isStarred(f.path) && !prefs?.isHidden(f.path, f.lastAt));
+  return [
+    ...starred.sort((a, b) => a.name.localeCompare(b.name)),
+    ...rest.sort((a, b) => b.lastAt - a.lastAt || a.path.localeCompare(b.path)).slice(0, limit),
+  ];
 }

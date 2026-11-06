@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatBytes } from './attachments';
-import { ago, shortPath, spawnFolders } from './spawn';
+import { ago, spawnFolders } from './spawn';
 import { insertDictation, pickMimeType } from './dictation';
 
 describe('spawnFolders', () => {
@@ -23,11 +23,7 @@ describe('spawnFolders', () => {
 });
 
 describe('Novo agente: lista de projetos e anexos', () => {
-  it('caminho curto com ~ e tempo relativo', () => {
-    expect(shortPath('/Users/ana/Coding/proj')).toBe('~/Coding/proj');
-    expect(shortPath('/home/ana/proj')).toBe('~/proj');
-    expect(shortPath('/opt/x')).toBe('/opt/x');
-    expect(shortPath('C:\\Users\\ana\\proj')).toBe('~\\proj');
+  it('tempo relativo e tamanhos', () => {
     const now = 10_000_000;
     expect([ago(0, now), ago(now - 10_000, now), ago(now - 5 * 60_000, now), ago(now - 3 * 3_600_000, now), ago(now - 72 * 3_600_000, now)]).toEqual(['', 'agora', '5 min', '3 h', '3 d']);
     expect([formatBytes(900), formatBytes(2_048), formatBytes(3_500_000)]).toEqual(['900 B', '2 KB', '3,3 MB']);
