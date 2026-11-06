@@ -7733,7 +7733,7 @@ html.is-replay #world {
 
 .ui-spawn__prompt {
   resize: vertical;
-  min-height: 84px;
+  min-height: 56px;
 }
 
 .ui-spawn__go {
@@ -7745,8 +7745,8 @@ html.is-replay #world {
 .ui-spawn__folders {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 232px;
+  gap: 3px;
+  max-height: min(440px, 50vh);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -7754,12 +7754,12 @@ html.is-replay #world {
 .ui-spawn__folder {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: 'name when' 'path when';
+  grid-template-areas: 'name when';
   align-items: center;
   column-gap: 8px;
   width: 100%;
-  min-height: 44px;
-  padding: 6px 10px;
+  min-height: 32px;
+  padding: 4px 10px;
   border-radius: 8px;
   border: 1px solid var(--ui-line);
   background: var(--ui-bg-soft);
@@ -7793,15 +7793,6 @@ html.is-replay #world {
   white-space: nowrap;
 }
 
-.ui-spawn__folder-path {
-  grid-area: path;
-  font-size: 11.5px;
-  color: var(--ui-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .ui-spawn__folder-when {
   grid-area: when;
   font-size: 11px;
@@ -7810,6 +7801,25 @@ html.is-replay #world {
 
 .ui-spawn__folder-row {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ui-spawn__folder-star {
+  flex: none;
+  color: var(--ui-faint);
+  opacity: 0.45;
+}
+
+.ui-spawn__folder-star:hover,
+.ui-spawn__folder-star:focus-visible {
+  opacity: 1;
+}
+
+.ui-spawn__folder-star.is-on {
+  color: #ffd36b;
+  opacity: 1;
 }
 
 /* O × de tirar da lista aparece no lugar do "há quanto tempo" ao passar o mouse. */

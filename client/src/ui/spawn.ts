@@ -1,7 +1,7 @@
 // Novo agente (botão na barra do topo): começa uma sessão do Claude Code em segundo plano no Mac, na pasta escolhida e
 // com o pedido (POST /api/spawn; server/spawn/spawn.ts). As pastas são os projetos recentes do computador
-// (GET /api/spawn/folders: histórico de sessões + salas), para escolher com um toque; "Outra pasta" aceita um caminho
-// digitado. O pedido pode levar anexos (POST /api/spawn/attachments, um por arquivo, antes do pedido) e ser ditado
+// (GET /api/spawn/folders: histórico de sessões + salas, favoritas no topo), para escolher com um toque; "Outra pasta"
+// aceita um caminho digitado. O pedido pode levar anexos (POST /api/spawn/attachments, um por arquivo, antes do pedido) e ser ditado
 // (ui/dictation.ts, Whisper local no Mac). Pasta que o Claude Code não conhece cai no app (Enter lá).
 import { tr } from '../../../shared/i18n';
 import { isDemoId } from '../../../shared/timeline';
@@ -35,6 +35,7 @@ export interface FolderOption {
   name: string;
   lastAt: number;
   sessions?: number;
+  starred?: boolean;
 }
 
 /** Pastas das salas, da mais recente para a mais antiga (reserva quando o servidor não manda a lista). */
@@ -47,11 +48,6 @@ export function spawnFolders(snap: Pick<OfficeSnapshot, 'rooms' | 'agents'> | nu
     .sort((a, b) => (last.get(b.id) ?? 0) - (last.get(a.id) ?? 0))
     .map((r) => r.path);
   return [...new Set(paths)];
-}
-
-/** Caminho curto para a lista: a pasta pessoal vira "~". */
-export function shortPath(path: string): string {
-  return path.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, '~').replace(/^[A-Za-z]:\\Users\\[^\\]+(?=\\|$)/i, '~');
 }
 
 /** "agora", "5 min", "3 h", "2 d" (vazio sem horário). */
@@ -143,7 +139,7 @@ export class SpawnPanel {
     });
     this.prompt = h('textarea', {
       class: 'ui-rename__input ui-spawn__prompt',
-      attrs: { id: 'ui-spawn-prompt', rows: 5, maxlength: SPAWN_PROMPT_MAX, placeholder: tr('O que o agente deve fazer (opcional)') },
+      attrs: { id: 'ui-spawn-prompt', rows: 3, maxlength: SPAWN_PROMPT_MAX, placeholder: tr('O que o agente deve fazer (opcional)') },
     });
     this.fileInput = h('input', { type: 'file', hidden: true, attrs: { multiple: true, 'aria-hidden': 'true', tabindex: '-1' } });
     this.fileInput.addEventListener('change', () => {
@@ -196,7 +192,6 @@ export class SpawnPanel {
         this.prompt,
         h('div', { class: 'ui-spawn__tools' }, this.dictate.el, attachBtn, this.fileInput),
         this.fileList,
-        h('p', { class: 'ui-rename__hint', text: tr('Começa na hora uma sessão do Claude Code em segundo plano no computador, na pasta escolhida; as permissões chegam aqui. Pasta que o Claude Code ainda não conhece abre no app do Claude e espera o Enter lá. Anexos vão para ~/.habblaud/attachments e o pedido leva os caminhos.') }),
         this.submitBtn,
         this.status,
       ),
@@ -279,11 +274,13 @@ export class SpawnPanel {
             on: { click: () => this.pick(f.path) },
           },
           h('span', { class: 'ui-spawn__folder-name', text: f.name }),
-          h('span', { class: 'ui-spawn__folder-path', text: shortPath(f.path) }),
           when ? h('span', { class: 'ui-spawn__folder-when', text: when }) : null,
         );
-        const remove = iconButton(ICONS.close, tr('Tirar {0} da lista', [f.name]), () => void this.hideFolder(f.path), 'ui-icon-btn--sm ui-spawn__folder-hide');
-        return h('div', { class: 'ui-spawn__folder-row' }, card, remove);
+        const starLabel = f.starred ? tr('Tirar {0} dos favoritos', [f.name]) : tr('Marcar {0} como favorito', [f.name]);
+        const star = iconButton(ICONS.star, starLabel, () => void this.folderAction(f.path, 'star', !f.starred), `ui-icon-btn--sm ui-spawn__folder-star${f.starred ? ' is-on' : ''}`);
+        star.setAttribute('aria-pressed', String(!!f.starred));
+        const remove = iconButton(ICONS.close, tr('Tirar {0} da lista', [f.name]), () => void this.folderAction(f.path, 'hide'), 'ui-icon-btn--sm ui-spawn__folder-hide');
+        return h('div', { class: 'ui-spawn__folder-row' }, star, card, remove);
       }),
     );
     if (!this.folders.length) this.showOther(true);
@@ -298,16 +295,15 @@ export class SpawnPanel {
     this.renderFolders();
   }
 
-  /** Tira a pasta da lista (volta sozinha quando houver sessão nova nela). */
-  private async hideFolder(path: string): Promise<void> {
+  /** Estrela (favorita, sempre no topo) ou × (sai da lista até ter sessão nova nela); a ordem nova vem do servidor. */
+  private async folderAction(path: string, action: 'star' | 'hide', on = true): Promise<void> {
     try {
-      await api('/api/spawn/folders/hide', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) });
+      await api(`/api/spawn/folders/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path, on }) });
     } catch (err) {
-      return this.say(tr('Não deu para tirar da lista: {0}', [(err as Error).message]), true);
+      return this.say(tr('Não deu para mudar a lista: {0}', [(err as Error).message]), true);
     }
-    this.folders = this.folders.filter((f) => f.path !== path);
-    if (this.selected === path && !this.typing) this.selected = this.folders[0]?.path ?? '';
-    this.renderFolders();
+    if (action === 'hide' && this.selected === path && !this.typing) this.selected = '';
+    await this.loadFolders();
   }
 
   private showOther(on: boolean, value?: string): void {

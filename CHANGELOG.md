@@ -14,6 +14,9 @@ do meio (0.**3**.0).
 
 - **Novo agente: tirar um projeto da lista.** O × que aparece ao passar o mouse num cartão de projeto tira a pasta da
   lista (útil para pastas de uma vez só). Ela volta sozinha se houver uma sessão nova nela.
+- **Novo agente: projetos favoritos.** A estrela num cartão fixa o projeto no topo da lista para sempre, mesmo sem
+  sessão recente. A lista ficou mais compacta (só o nome; o caminho aparece ao passar o mouse) e mostra até 30
+  projetos, o campo do pedido ficou menor e o texto explicativo sob o formulário saiu.
 
 ## [1.0.3] - 2026-10-16
 
