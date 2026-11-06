@@ -37,8 +37,8 @@ do meio (0.**3**.0).
   quando todos estão ociosos. A faixa das salas no painel lateral segue as mesmas cores. Em repouso, a sala fica à meia-luz (os monitores continuam acesos); a luz apagada
   continua sendo "todo mundo foi embora".
 - **Novo agente: projetos favoritos.** A estrela num cartão fixa o projeto no topo da lista para sempre, mesmo sem
-  sessão recente. A lista ficou mais compacta (só o nome; o caminho aparece ao passar o mouse) e mostra até 30
-  projetos, o campo do pedido ficou menor e o texto explicativo sob o formulário saiu.
+  sessão recente. A lista ficou mais compacta (só o nome; o caminho aparece ao passar o mouse) e mostra até 10
+  projetos recentes além dos favoritos, o campo do pedido ficou menor e o texto explicativo sob o formulário saiu.
 
 ### Corrigido
 

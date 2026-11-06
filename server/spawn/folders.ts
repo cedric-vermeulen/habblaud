@@ -25,7 +25,7 @@ export interface FolderFilter {
 }
 
 /** Pastas não favoritas mostradas (as favoritas vêm todas, por cima). */
-export const FOLDERS_LIMIT = 30;
+export const FOLDERS_LIMIT = 10;
 
 const TEMP = /^(\/private)?\/(tmp|var\/folders|var\/tmp)(\/|$)/;
 /** Pastas descartáveis que o app desktop do Claude cria para sessões sem projeto. */
