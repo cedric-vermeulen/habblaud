@@ -12,6 +12,9 @@ do meio (0.**3**.0).
 
 ### Adicionado
 
+- **Modelo e contexto nos cartões de agente:** cada agente e subagente da lista lateral mostra o modelo que usa e o
+  tamanho atual do contexto (ex.: "Opus 5.5 · 42 k de contexto"), também no painel do agente. Tudo vem do transcript,
+  sem gastar tokens.
 - **Novo agente: tirar um projeto da lista.** O × que aparece ao passar o mouse num cartão de projeto tira a pasta da
   lista (útil para pastas de uma vez só). Ela volta sozinha se houver uma sessão nova nela.
 - **Salas comuns compactas:** em **Configurações › Escritório › Salas comuns**, a opção **Compactas** troca os

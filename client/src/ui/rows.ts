@@ -2,7 +2,7 @@
 import type { AccountInfo, AgentInfo } from '../../../shared/types';
 import { createAvatar, updateAvatar, type AvatarSize } from './avatar';
 import { h, setAttr, setHidden, setStyleVar, setText, setTitle, setVariant } from './dom';
-import { formatDuration } from './format';
+import { formatDuration, formatTokens, prettyModel } from './format';
 import { activityFallback, shellLine, shellWaitIn, statusLabel } from './model';
 import {
   createAccountChip,
@@ -28,6 +28,8 @@ interface RowRefs {
   task: HTMLElement;
   /** Há quanto tempo está ocioso (no lugar do "Principal"). */
   since: HTMLElement;
+  /** Modelo e tamanho do contexto (lidos do transcript, nenhum token gasto). */
+  meta: HTMLElement;
   size: AvatarSize;
 }
 
@@ -42,16 +44,17 @@ export function createAgentRow(agent: AgentInfo, onPick: (id: string) => void, s
   const activity = createActivityLine();
   const task = h('span', { class: 'ui-agent__task', hidden: true });
   const since = h('span', { class: 'ui-agent__since', hidden: true });
+  const meta = h('span', { class: 'ui-agent__meta', hidden: true });
   const row = h(
     'button',
     { class: 'ui-agent', type: 'button' },
     avatar,
-    h('span', { class: 'ui-agent__main' }, h('span', { class: 'ui-agent__top' }, name, chip, since, role), task, activity),
+    h('span', { class: 'ui-agent__main' }, h('span', { class: 'ui-agent__top' }, name, chip, since, role), task, activity, meta),
     dot,
   );
   row.dataset.id = agent.id;
   row.addEventListener('click', () => onPick(row.dataset.id!));
-  refs.set(row, { avatar, name, chip, role, dot, activity, task, since, size });
+  refs.set(row, { avatar, name, chip, role, dot, activity, task, since, meta, size });
   return row;
 }
 
@@ -79,6 +82,10 @@ export function updateAgentRow(
   setText(r.task, title);
   setTitle(r.task, title);
   setHidden(r.task, !title);
+  const ctx = agent.stats.contextTokens;
+  const meta = [agent.model ? prettyModel(agent.model) : '', ctx ? tr('{0} de contexto', [formatTokens(ctx)]) : ''].filter(Boolean).join(' · ');
+  setText(r.meta, meta);
+  setHidden(r.meta, !meta);
   // Agente principal ocioso há 1 min ou mais: o tempo aparece no lugar do "Principal".
   const idleFor = agent.kind === 'main' && agent.status === 'idle' && agent.statusSince ? now - agent.statusSince : 0;
   const showIdle = idleFor >= 60_000;

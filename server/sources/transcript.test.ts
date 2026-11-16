@@ -181,6 +181,7 @@ describe('parseLine — títulos, tarefas e números', () => {
     ]);
     expect(s.stats.tokensIn).toBe(1052 + 5);
     expect(s.stats.tokensOut).toBe(40 + 7);
+    expect(s.stats.contextTokens).toBe(5);
     expect(s.stats.toolCalls).toBe(1);
   });
 

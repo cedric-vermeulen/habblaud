@@ -158,6 +158,7 @@ describe('rollout do Codex: paginated', () => {
     const { state } = feed([R.tokens({ input: 1_000, cached: 800, output: 50 }), R.tokens({ input: 3_000, cached: 2_500, output: 120, reasoning: 60 })]);
     expect(state.stats.tokensIn).toBe(3_000);
     expect(state.stats.tokensOut).toBe(120);
+    expect(state.stats.contextTokens).toBe(3_000);
   });
 
   it('uso do plano: janela pela duração, idade da linha e sem cota', () => {

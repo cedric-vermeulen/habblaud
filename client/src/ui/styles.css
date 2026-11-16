@@ -7536,6 +7536,18 @@ html.is-replay #world {
   display: none;
 }
 
+/* Modelo e contexto atual na lista de agentes. */
+.ui-agent__meta {
+  display: block;
+  margin-top: 1px;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--ui-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Título da sessão na lista de agentes (o mesmo do hover do personagem). */
 .ui-agent__task {
   display: block;

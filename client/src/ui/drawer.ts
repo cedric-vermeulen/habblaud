@@ -389,6 +389,7 @@ class AgentView {
       ['tools', tr('Chamadas de ferramenta')],
       ['tokensIn', tr('Tokens de entrada')],
       ['tokensOut', tr('Tokens de saída')],
+      ['context', tr('Contexto atual')],
       ['cost', tr('Custo estimado')],
       ['lines', tr('Linhas'), h('span', { class: 'ui-lines' }, this.linesPlus, this.linesMinus)],
       ['subs', tr('Subagentes disparados')],
@@ -735,6 +736,7 @@ class AgentView {
     st.set('tools', formatInt(s.toolCalls));
     st.set('tokensIn', formatTokens(s.tokensIn));
     st.set('tokensOut', formatTokens(s.tokensOut));
+    st.set('context', s.contextTokens ? formatTokens(s.contextTokens) : null);
     st.set('cost', s.costUSD !== undefined ? formatUSD(s.costUSD) : null);
     const codex = providerOf(a) === 'codex';
     const hasLines = s.linesAdded !== undefined || s.linesRemoved !== undefined;
@@ -756,7 +758,7 @@ class AgentView {
   }
 }
 
-type StatKey = 'tools' | 'tokensIn' | 'tokensOut' | 'cost' | 'lines' | 'subs' | 'model' | 'branch' | 'perm' | 'session' | 'start' | 'duration' | 'bg';
+type StatKey = 'tools' | 'tokensIn' | 'tokensOut' | 'context' | 'cost' | 'lines' | 'subs' | 'model' | 'branch' | 'perm' | 'session' | 'start' | 'duration' | 'bg';
 
 /** Lista chave/valor de linhas fixas: cada linha é criada uma vez e só tem o texto/visibilidade atualizados. */
 class KvList<K extends string> {
