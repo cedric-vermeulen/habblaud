@@ -10,6 +10,12 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Modelo e contexto nos cartões de agente:** cada agente e subagente da lista lateral mostra o modelo que usa e o
+  tamanho atual do contexto (ex.: "Opus 5.5 · 42 k de contexto"), também no painel do agente. Tudo vem do transcript,
+  sem gastar tokens.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido

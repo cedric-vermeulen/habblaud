@@ -120,6 +120,8 @@ export interface AgentStats {
   /** input + cache read + cache creation. */
   tokensIn: number;
   tokensOut: number;
+  /** Tamanho do contexto agora: entrada total (com cache) da última resposta. */
+  contextTokens?: number;
   costUSD?: number;
   linesAdded?: number;
   linesRemoved?: number;

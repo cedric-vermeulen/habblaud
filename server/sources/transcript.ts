@@ -394,7 +394,12 @@ class LineParser {
     const prev = s.usageByMsg.get(msgId) ?? { tin: 0, tout: 0 };
     const dIn = Math.max(0, tin - prev.tin);
     const dOut = Math.max(0, tout - prev.tout);
-    remember(s.usageByMsg, msgId, { tin: Math.max(tin, prev.tin), tout: Math.max(tout, prev.tout) }, 256);
+    const ctx = Math.max(tin, prev.tin);
+    remember(s.usageByMsg, msgId, { tin: ctx, tout: Math.max(tout, prev.tout) }, 256);
+    if (ctx && ctx !== s.stats.contextTokens) {
+      s.stats.contextTokens = ctx;
+      this.changed();
+    }
     if (dIn || dOut) {
       s.stats.tokensIn += dIn;
       s.stats.tokensOut += dOut;
@@ -837,6 +842,7 @@ export function mergePrefix(state: TranscriptState, prefix: TranscriptState): vo
   state.stats.toolCalls += prefix.stats.toolCalls;
   state.stats.tokensIn += prefix.stats.tokensIn;
   state.stats.tokensOut += prefix.stats.tokensOut;
+  state.stats.contextTokens ??= prefix.stats.contextTokens;
   state.stats.subagents += prefix.stats.subagents;
   if (!state.costSeen && prefix.costSeen) {
     state.costSeen = true;

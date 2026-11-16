@@ -656,6 +656,11 @@ class RolloutLineParser {
         this.changed();
       }
     }
+    const ctx = num(rec(rec(p.info)?.last_token_usage)?.input_tokens);
+    if (ctx && ctx !== this.s.stats.contextTokens) {
+      this.s.stats.contextTokens = ctx;
+      this.changed();
+    }
     const rl = rec(p.rate_limits);
     if (!rl) return;
     const plan = str(rl.plan_type);
