@@ -10,6 +10,11 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Corrigido
+
+- **Terminal sem cores.** Se o Habblaud fosse iniciado de dentro de uma sessão do Claude Code, o terminal herdava o
+  `NO_COLOR` dela e o Claude aberto ali ficava todo branco. O Habblaud agora tira essa variável.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido
