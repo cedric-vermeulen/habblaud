@@ -10,6 +10,12 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Corrigido
+
+- **Agente fantasma depois de um crash ou reinício.** Se a sessão morreu sem limpar o registro e outro programa herdou
+  o PID dela, o agente aparecia vivo, sem poder assumir nem encerrar. Agora o Habblaud confere que o PID ainda é o
+  Claude Code e tira o agente do escritório.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido

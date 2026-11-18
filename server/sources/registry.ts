@@ -6,12 +6,15 @@ import { join } from 'node:path';
 import type { AgentStatus } from '../../shared/types';
 import { describeWaitingFor } from '../../shared/activity';
 import { tr } from '../../shared/i18n';
+import { readProcInfo, sameProcess, type ProcInfo } from '../pty/procinfo';
 
 export interface RegistryEntry {
   pid: number;
   sessionId: string;
   cwd: string;
   startedAt?: number;
+  /** Início exato do processo (FILETIME no Windows), para notar um PID reaproveitado. */
+  procStart?: string;
   version?: string;
   kind?: string;
   entrypoint?: string;
@@ -49,6 +52,7 @@ export function parseRegistryEntry(raw: string): RegistryEntry | undefined {
   const e: RegistryEntry = { pid, sessionId, cwd };
   const optional: Array<[keyof RegistryEntry, unknown]> = [
     ['startedAt', num(j.startedAt)],
+    ['procStart', str(j.procStart)],
     ['version', str(j.version)],
     ['kind', str(j.kind)],
     ['entrypoint', str(j.entrypoint)],
@@ -116,17 +120,56 @@ interface Cached {
   entry: RegistryEntry | undefined;
 }
 
+/** Conferência de identidade de um PID: false = outro processo herdou o PID de uma sessão morta. */
+interface Identity {
+  key: string;
+  same?: boolean;
+  checkedAt: number;
+}
+
+const RECHECK_MS = 5 * 60_000;
+
 export class RegistryReader {
   private cache = new Map<string, Cached>();
   private readonly sessionsDir: string;
   private readonly isAlive: (pid: number) => boolean;
+  private readonly identify?: (pid: number) => Promise<ProcInfo | undefined>;
+  private identities = new Map<string, Identity>();
 
   constructor(
     readonly configDir: string,
-    private readonly opts: { checkPid: boolean; isAlive?: (pid: number) => boolean },
+    private readonly opts: {
+      checkPid: boolean;
+      isAlive?: (pid: number) => boolean;
+      identify?: (pid: number) => Promise<ProcInfo | undefined>;
+      now?: () => number;
+    },
   ) {
     this.sessionsDir = join(configDir, 'sessions');
     this.isAlive = opts.isAlive ?? pidAlive;
+    // PIDs falsos (testes com isAlive injetado) não passam pelo sistema.
+    this.identify = opts.identify ?? (opts.isAlive ? undefined : readProcInfo);
+  }
+
+  /** PID vivo mas de outro programa (registro que sobrou de um crash ou reinício)? Confere em segundo plano. */
+  private reused(file: string, e: RegistryEntry): boolean {
+    if (!this.identify) return false;
+    const key = `${e.pid}:${e.procStart ?? e.startedAt ?? ''}`;
+    const now = (this.opts.now ?? Date.now)();
+    let id = this.identities.get(file);
+    if (id?.key !== key) id = undefined;
+    if (!id || (id.same === true && now - id.checkedAt > RECHECK_MS)) {
+      const next: Identity = { key, same: id?.same, checkedAt: now };
+      this.identities.set(file, next);
+      void this.identify(e.pid).then(
+        (info) => {
+          if (info) next.same = sameProcess(e, info);
+        },
+        () => undefined,
+      );
+      id = next;
+    }
+    return id.same === false;
   }
 
   poll(): RegistryPoll {
@@ -165,10 +208,11 @@ export class RegistryReader {
       }
       const e = cached.entry;
       if (!e) continue;
-      if (this.opts.checkPid && !this.isAlive(e.pid)) continue;
+      if (this.opts.checkPid && (!this.isAlive(e.pid) || this.reused(file, e))) continue;
       entries.push(e);
     }
     for (const file of [...this.cache.keys()]) if (!seen.has(file)) this.cache.delete(file);
+    for (const file of [...this.identities.keys()]) if (!seen.has(file)) this.identities.delete(file);
     return { entries, ok: true };
   }
 }

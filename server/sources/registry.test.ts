@@ -57,6 +57,19 @@ describe('registro de sessões', () => {
     expect(docker.poll().entries.map((e) => e.pid).sort()).toEqual([10, 11]);
   });
 
+  it('descarta o registro cujo PID foi reaproveitado por outro programa', async () => {
+    writeFileSync(join(sessions, '30.json'), entry(30, { procStart: '111' }));
+    writeFileSync(join(sessions, '31.json'), entry(31, { procStart: '222' }));
+    const procs: Record<number, { startMs: number; name: string; fileTime: string }> = {
+      30: { startMs: 0, name: 'XboxPcAppFT', fileTime: '999' },
+      31: { startMs: 0, name: 'claude', fileTime: '222' },
+    };
+    const reader = new RegistryReader(tmp.dir, { checkPid: true, isAlive: () => true, identify: async (pid) => procs[pid] });
+    expect(reader.poll().entries.map((e) => e.pid).sort()).toEqual([30, 31]);
+    await new Promise((ok) => setImmediate(ok));
+    expect(reader.poll().entries.map((e) => e.pid)).toEqual([31]);
+  });
+
   it('JSON inválido (gravação em andamento) mantém a última versão boa', () => {
     const file = join(sessions, '20.json');
     writeFileSync(file, entry(20, { status: 'busy' }));
