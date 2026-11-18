@@ -45,6 +45,9 @@ do meio (0.**3**.0).
 
 ### Corrigido
 
+- **Agente fantasma depois de um crash ou reinício.** Se a sessão morreu sem limpar o registro e outro programa herdou
+  o PID dela, o agente aparecia vivo, sem poder assumir nem encerrar. Agora o Habblaud confere que o PID ainda é o
+  Claude Code e tira o agente do escritório.
 - **Links nas respostas do agente abrem.** Links `http(s)` no terminal e nas Entregas abrem numa aba nova; os outros
   continuam como texto, com o endereço na dica.
 - **Terminal interativo: Shift+Enter quebra a linha.** Antes enviava o pedido, como o Enter; agora insere uma nova
