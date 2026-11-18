@@ -45,6 +45,8 @@ do meio (0.**3**.0).
 
 ### Corrigido
 
+- **Terminal sem cores.** Se o Habblaud fosse iniciado de dentro de uma sessão do Claude Code, o terminal herdava o
+  `NO_COLOR` dela e o Claude aberto ali ficava todo branco. O Habblaud agora tira essa variável.
 - **Agente fantasma depois de um crash ou reinício.** Se a sessão morreu sem limpar o registro e outro programa herdou
   o PID dela, o agente aparecia vivo, sem poder assumir nem encerrar. Agora o Habblaud confere que o PID ainda é o
   Claude Code e tira o agente do escritório.

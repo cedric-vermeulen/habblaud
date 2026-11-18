@@ -153,6 +153,8 @@ const INHERITED_SESSION_VARS = [
   'CLAUDE_CODE_MESSAGING_SOCKET',
   'CLAUDE_CODE_MESSAGING_TOKEN',
   'CLAUDE_CODE_SSE_PORT',
+  // posto pelas ferramentas do Claude Code; deixaria o terminal do Habblaud sem cores
+  'NO_COLOR',
 ];
 
 /**
